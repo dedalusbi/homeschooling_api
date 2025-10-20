@@ -14,6 +14,8 @@ defmodule Homeschooling.Repo.Migrations.CreateInitialTables do
       add :id, :uuid, primary_key: true
       add :email, :string, null: false
       add :password_hash, :string, null: false
+      add :profile_picture_url, :string, null: true
+      add :full_name, :string, null: false
       add :subscription_tier, :subscription_tier, null: false, default: "essential"
       add :ai_requests_count, :integer, null: false, default: 0
       add :payment_gateway_customer_id, :string
