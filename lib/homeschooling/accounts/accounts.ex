@@ -5,8 +5,10 @@ defmodule Homeschooling.Accounts do
   alias Homeschooling.Accounts.User
 
   def register_user(attrs) do
-    with {:ok, changeset} <- {:ok, %User{} |> User.registration_changeset(attrs)},
-         {:ok, user} <- Repo.insert(changeset) do
+    with(
+      {:ok, changeset} <- {:ok, %User{} |> User.registration_changeset(attrs)},
+      {:ok, user} <- Repo.insert(changeset)
+    ) do
       {:ok, user}
     end
   end
@@ -24,6 +26,13 @@ defmodule Homeschooling.Accounts do
       nil ->
         {:error, :invalid_credentials}
     end
+  end
+
+  @doc """
+  Gets a single user by ID.
+  """
+  def get_user_by_id(id) do
+    Repo.get(User, id)
   end
 
 

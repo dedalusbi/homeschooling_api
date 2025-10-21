@@ -67,4 +67,4 @@ config :swoosh, :api_client, false
 
 
 #Configuração do Joken para desenvolvimento
-config :homeschooling, jwt_secret: "2CpyFS6xIcZ/Gjab6Fa1hScuLN4R02MNscSK6De3e8jgvFFexLwfZCwLF+89loP1"
+config :homeschooling, :jwt_secret, "2CpyFS6xIcZ/Gjab6Fa1hScuLN4R02MNscSK6De3e8jgvFFexLwfZCwLF+89loP1"

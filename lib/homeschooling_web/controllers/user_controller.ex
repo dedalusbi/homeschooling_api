@@ -43,6 +43,13 @@ defmodule HomeschoolingWeb.UserController do
     end
 
 
+    #Essa função só será alcançada se o AuthPlug for bem-sucedido
+    #O Plug já colocou os dados do utilizador na `conn` para nós
+    def me(conn, _params) do
+        current_user = conn.assigns.current_user
+        json(conn, %{data: current_user})
+    end
+
 
 
     #Função privada para formatar os erros do changeset numa forma amigável para o usuário

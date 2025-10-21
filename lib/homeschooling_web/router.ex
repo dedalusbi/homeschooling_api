@@ -5,10 +5,20 @@ defmodule HomeschoolingWeb.Router do
     plug :accepts, ["json"]
   end
 
+  pipeline :protected do
+    plug HomeschoolingWeb.Auth.AuthPlug
+  end
+
   scope "/api", HomeschoolingWeb do
     pipe_through :api
     post "/users/register", UserController, :register
     post "/users/login", UserController, :login
+  end
+
+  scope "/api", HomeschoolingWeb do
+    pipe_through [:api, :protected]
+
+    get "/me", UserController, :me
   end
 
   # Enable Swoosh mailbox preview in development
