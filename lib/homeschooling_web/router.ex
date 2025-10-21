@@ -8,6 +8,7 @@ defmodule HomeschoolingWeb.Router do
   scope "/api", HomeschoolingWeb do
     pipe_through :api
     post "/users/register", UserController, :register
+    post "/users/login", UserController, :login
   end
 
   # Enable Swoosh mailbox preview in development

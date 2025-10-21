@@ -67,6 +67,13 @@ if config_env() == :prod do
     ],
     secret_key_base: secret_key_base
 
+  #Configuração do Joken para produção (usando variável de ambiente)
+  secret_key_base = System.fetch_env!("AUTH_SECRET") #Busca a variável de ambiente AUTH_SECRET
+
+
+
+
+
   # ## SSL Support
   #
   # To get SSL working, you will need to add the `https` key
