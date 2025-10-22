@@ -3,6 +3,9 @@ defmodule HomeschoolingWeb.Router do
 
   pipeline :api do
     plug :accepts, ["json"]
+
+    plug CORSPlug
+
   end
 
   pipeline :protected do
@@ -13,6 +16,9 @@ defmodule HomeschoolingWeb.Router do
     pipe_through :api
     post "/users/register", UserController, :register
     post "/users/login", UserController, :login
+
+    options "/users/register", UserController, :register
+    options "/users/login", UserController, :login
   end
 
   scope "/api", HomeschoolingWeb do
