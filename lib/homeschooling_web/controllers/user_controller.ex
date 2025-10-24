@@ -61,4 +61,51 @@ defmodule HomeschoolingWeb.UserController do
         end)
     end
 
+
+    #Endpoint para solicitar a recuperação de senha
+    #Recebe: {"email": "user@example.com"}
+    def request_password_reset(conn, %{"email" => email}) do
+        case Accounts.generate_and_send_reset_token(email) do
+            #Sucesso ou email não encontrado - retornamos sempre OK para não vazar informação
+            {:ok, message} ->
+                json(conn, %{message: message})
+            {:error, :user_not_found} ->
+                #logar com o erro internamente, se necessário
+                json(conn, %{message: "Se o email estiver registrado, receberá instruções."})
+            {:error, reason} ->
+                #Logar com o erro internamente
+                conn
+                |> put_status(:internal_server_error)
+                |> json(%{error: "Ocorreu um erro inesperado."})
+        end
+    end
+    def request_password_reset(conn, _params) do
+        conn |> put_status(:bad_request) |> json(%{error: "Email em falta."})
+    end
+
+
+    #Endpoint para efetivar a redefinição de senha
+    #Recebe {"token": "...", "password": "...", "confirm_password": "..."}
+    def reset_password(conn, %{"token" => token, "password" => password, "confirm_password" => confirm}) do
+        case Accounts.reset_password(token, password, confirm) do
+            {:ok, message} ->
+                json(conn, %{message: message})
+            {:error, :passwords_mismatch} ->
+                conn |> put_status(:unprocessable_entity) |> json(%{error: "As senhas não coincidem."})
+            {:error, :password_too_short} ->
+                conn |> put_status(:unprocessable_entity) |> json(%{error: "A senha deve ter pelo menos 6 caracteres."})
+            {:error, :invalis_or_expired_token} ->
+                conn |> put_status(:unprocessable_entity) |> json(%{error: "Token inválido ou expirado."})
+            {:error, {:password_update_failed, changeset}} ->
+                conn |> put_status(:unprocessable_entity) |> json(%{error: "Erro ao atualizar a senha.", details: format_errors(changeset)})
+            {:error, reason} ->
+                #Logar erro interno
+                conn |> put_status(:internal_server_error) |> json(%{error: "Ocorreu um erro inesperado."})
+
+        end
+    end
+    def reset_password(conn, _params) do
+        conn |> put_status(:bad_request) |> json(%{error: "Dados em falta"})
+    end
+
 end

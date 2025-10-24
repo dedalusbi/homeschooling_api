@@ -16,9 +16,13 @@ defmodule HomeschoolingWeb.Router do
     pipe_through :api
     post "/users/register", UserController, :register
     post "/users/login", UserController, :login
+    post "users/request_password_reset", UserController, :request_password_reset
+    post "/users/reset_password", UserController, :reset_password
 
     options "/users/register", UserController, :register
     options "/users/login", UserController, :login
+    options "users/request_password_reset", UserController, :request_password_reset
+    options "/users/reset_password", UserController, :reset_password
   end
 
   scope "/api", HomeschoolingWeb do

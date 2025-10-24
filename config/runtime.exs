@@ -28,6 +28,8 @@ if config_env() == :prod do
       For example: ecto://USER:PASS@HOST/DATABASE
       """
 
+
+
   maybe_ipv6 = if System.get_env("ECTO_IPV6") in ~w(true 1), do: [:inet6], else: []
 
   config :homeschooling, Homeschooling.Repo,
@@ -70,8 +72,8 @@ if config_env() == :prod do
   #Configuração do Joken para produção (usando variável de ambiente)
   secret_key_base = System.fetch_env!("AUTH_SECRET") #Busca a variável de ambiente AUTH_SECRET
 
-
-
+  #Configuração de Email para produção (SendGrid)
+  config :homeschooling, Homeschooling.Mailer, adapter: Swoosh.Adapters.SendGrid, api_key: System.fetch_env!("SENDGRIP_API_KEY") #Definir esta variável em produção
 
 
   # ## SSL Support

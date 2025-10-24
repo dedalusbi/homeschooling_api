@@ -68,3 +68,10 @@ config :swoosh, :api_client, false
 
 #Configuração do Joken para desenvolvimento
 config :homeschooling, :jwt_secret, "2CpyFS6xIcZ/Gjab6Fa1hScuLN4R02MNscSK6De3e8jgvFFexLwfZCwLF+89loP1"
+
+#Configuração do Swoosh Mailer
+config :homeschooling, Homeschooling.Mailer, adapter: Swoosh.Adapters.Local
+
+#Configuração para pré-visualizar emails em /dev/mailbox
+config :swoosh, :api_client, false
+config :swoosh, :mailbox_preview, mode: :alias

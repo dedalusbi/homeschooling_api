@@ -53,7 +53,8 @@ defmodule Homeschooling.MixProject do
       {:bandit, "~> 1.5"},
       {:pbkdf2_elixir, "~> 2.0"},
       {:joken, "~> 2.6.2"},
-      {:cors_plug, "~>3.0"}
+      {:cors_plug, "~>3.0"},
+      {:finch, "~> 0.20.0"}
     ]
   end
 
