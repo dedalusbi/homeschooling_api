@@ -33,6 +33,21 @@ defmodule Homeschooling.Accounts.User do
     |> put_password_hash()
   end
 
+  # Changeset específico para quando o usuário redefinir a senha
+  # através do link de recuperação. Valida apenas o campo de senha.
+  def password_reset_changeset(user, attrs) do
+    user
+    # `cast` que permite apenas que o campo :password seja alterado através deste changeset
+    |> cast(attrs, [:password])
+    #Valida que a nova senha foi fornecida
+    |> validate_required([:password])
+    #Valida que a nova senha tem o comprimento mínimo exigido
+    |> validate_length(:password, min: 6)
+    #Reutiliza a função privada 'put_password_hash para encriptar a nova senha
+    |> put_password_hash()
+  end
+
+
   defp put_password_hash(changeset) do
     case changeset do
       %Ecto.Changeset{valid?: true, changes: %{password: password}} ->

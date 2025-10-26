@@ -47,4 +47,6 @@ defmodule HomeschoolingWeb.Endpoint do
 
   plug HomeschoolingWeb.Router
 
+  plug Swoosh.Plug.MailboxPreview, path: "/dev/mailbox"
+
 end

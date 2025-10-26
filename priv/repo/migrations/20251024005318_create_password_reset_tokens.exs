@@ -4,7 +4,7 @@ defmodule Homeschooling.Repo.Migrations.CreatePasswordResetTokens do
   def change do
     create table(:password_reset_tokens, primary_key: false) do
       #Usaremos o próprio token como chave primária para facilitar a busca
-      add :token, :string, primary_key: true
+      add :token_hash, :string, primary_key: true
       #Referência ao utilizador ao qual o token pertence
       add :user_id, references(:users, on_delete: :delete_all, type: :uuid), null: false
       #Data e hora em que o token expira
