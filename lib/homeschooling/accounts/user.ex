@@ -16,6 +16,7 @@ defmodule Homeschooling.Accounts.User do
     field :subscription_tier, Ecto.Enum, values: [:essential, :family, :educator]
     field :ai_requests_count, :integer
     field :payment_gateway_customer_id, :string
+    field :verified_at, :utc_datetime
 
 
 

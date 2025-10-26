@@ -4,30 +4,191 @@ defmodule Homeschooling.Accounts do
   alias Homeschooling.Mailer
   alias Homeschooling.Accounts.User
   alias Homeschooling.Accounts.PasswordResetToken
+  alias Homeschooling.Accounts.EmailVerificationToken
 
-
+  # Registra um novo usuário como não verificado, gera um token de verificação e envia o email correspondente.
   def register_user(attrs) do
-    with(
-      {:ok, changeset} <- {:ok, %User{} |> User.registration_changeset(attrs)},
-      {:ok, user} <- Repo.insert(changeset)
-    ) do
-      {:ok, user}
+    # Usando Ecto.Multi() para agrupar várias operações de base de dados que devem acontecer juntar (ou falhar juntas)
+    Ecto.Multi.new()
+    # 1. Tentando inserir o usuário utilizando o changeset de registro
+    |> Ecto.Multi.insert(:user, %User{} |> User.registration_changeset(attrs))
+    # 1. Se o usuário foi inserido, gera e insere o token de verificação
+    |> Ecto.Multi.run(:verification_token, fn repo, %{user: user} ->
+      generate_and_insert_verification_token(repo, user) end)
+    |> Repo.transaction()
+    |> case do
+      #Se tudo correu bem...
+      {:ok, %{user: user, verification_token: raw_token}} ->
+        #Envia o email de verificação
+        send_verification_email(user, raw_token)
+        #Retorna sucesso (mas indicando que a verificação é necessária)
+        {:ok, :verification_email_sent, user} #retorna o user para possível uso futuro
+
+      #Se houve um erro
+      {:error, _failed_operation, error_reason, _changes_so_far} ->
+        {:error, error_reason}
     end
   end
+
+
+  #Função auxiliar para gerar e inserir o token (usada no ecto.Multi)
+  defp generate_and_insert_verification_token(repo, user) do
+    with(
+      #Gera um token único (similar ao de reset de senha)
+      {:ok, raw_token} <- generate_unique_verification_token(),
+      #Define expiração
+      expires_at <- DateTime.add(DateTime.utc_now(), 24*3600, :second),
+      #Cria o changeset para o token
+      {:ok, changeset} <- {:ok, %EmailVerificationToken{} |> EmailVerificationToken.changeset(%{user_id: user.id, expires_at: expires_at}, raw_token)},
+      #Tenta inserir o token (hash)
+      {:ok, _token_struct} <- repo.insert(changeset)
+    )do
+      {:ok, raw_token}
+    else
+      {:error, reason} -> {:error, reason}
+    end
+  end
+  defp generate_unique_verification_token(retries \\ 5)
+  defp generate_unique_verification_token(0), do: {:error, :token_generation_failed}
+  defp generate_unique_verification_token(retries) do
+    raw_token = :crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false)
+    token_hash = :crypto.hash(:sha256, raw_token) |> Base.encode64(padding: false) |> binary_part(0,43)
+    unless Repo.get(EmailVerificationToken, token_hash) do
+      {:ok, raw_token}
+    else
+      generate_unique_verification_token(retries-1)
+    end
+  end
+
+
+  #Função para enviar o email de verificação
+  defp send_verification_email(user, raw_token) do
+    #Construir a URL do frontend que receberá o token
+    verification_url = "http://localhost:8100/auth/verify-email?token=#{raw_token}"
+    #Cria o email
+    email = Swoosh.Email.new()
+    |> Swoosh.Email.to({user.full_name, user.email})
+    |> Swoosh.Email.from({"EduCasa App", "dedalusbi@gmail.com"})
+    |> Swoosh.Email.subject("Confirme seu email - App Homeschooling")
+    |> Swoosh.Email.html_body("""
+      <p>Olá #{user.full_name}, </p>
+      <p>Bem-vindo ao EduCasa! Para ativar sua conta, por favor clique no link abaixo:</p>
+      <p><a href="#{verification_url}">Verificar meu email</a></p>
+      <p>Este link expira em 24 horas.</p>
+    """)
+    Mailer.deliver(email)
+  end
+
+
+  #Reenvia o email de verificação para um usuário não verificado.
+  #invalida tokens de vrificação anteriores para este usuário
+  def resend_verification_email(email) do
+    case Repo.get_by(User, email: email) do
+      %User{} = user ->
+        #Verifica se o utilizador já não está verificado
+        if is_nil(user.verified_at) do
+          #Usuário encontrado e não verificado. Procede com o reenvio. Inicia uma transação para garantir que a remoção do token
+          #antigo e a criação do novo aconteçam juntas
+          Repo.transaction(fn ->
+              #Remove quaisquer tokens de verificação anteriores para este usuário
+              Repo.delete_all(
+                from t in EmailVerificationToken, where: t.user_id == ^user.id
+              )
+
+              #Gera e insere um novo token de verificação
+              case generate_and_insert_verification_token(Repo, user) do
+                {:ok, raw_token} ->
+                  send_verification_email(user, raw_token)
+                  {:ok, :email_resent}
+
+                  {:error, reason} ->
+                    Repo.rollback({:error_generating_token, reason})
+              end
+          end)
+
+          #Analise o resultado da transação
+          |> case do
+            {:ok, email_resent} ->
+              {:ok, "Email de verificação reenviado."}
+            {:error, {:error_generating_token, reason}} ->
+              IO.inspect(reason, label: "Erro ao gerar token no reenvio")
+              {:error, :internal_server_error}
+            _ ->
+              {:error, :internal_server_error}
+          end
+        else
+          #Se usuário já verificado, não faz nada, retorna sucesso genérico
+          {:ok, "Email já verificado ou solicitação processada."}
+        end
+
+      #Se o email não foi encontrado
+      nil ->
+        #Retorna sucesso genérico para não vazar informação se o email existe
+        {:ok, "Solicitação de reenvio processada."}
+
+    end
+  end
+
+
+
+  #Verifica um token de email, marca o usuário como verificado e remove o token
+  def verify_user_email(token) do
+    # Calcula o hash do token recebido para procurar na base de dados
+    token_hash = :crypto.hash(:sha256, token) |> Base.encode64(padding: false) |> binary_part(0, 43)
+
+    # Inicia uma transação para garantir atomicidade
+    Repo.transaction(fn ->
+      # Procura o token pelo hash e pré-carrega o utilizador
+      case Repo.get(EmailVerificationToken, token_hash) |> Repo.preload(:user) do
+        # --- Padrão 1: Token e utilizador encontrados ---
+        %EmailVerificationToken{expires_at: expires_at, user: %User{} = user} ->
+          # Verifica se o token NÃO expirou (data atual é ANTES da expiração)
+          if DateTime.compare(DateTime.utc_now(), expires_at) == :lt do
+            # Token válido! Marca o utilizador como verificado
+            user
+            |> Ecto.Changeset.change(%{verified_at: DateTime.utc_now() |> DateTime.truncate(:second)})
+            |> Repo.update!() # Atualiza o utilizador
+
+            # Remove o token de verificação (usamos `delete!` pois esperamos que ele exista)
+            Repo.delete!(Repo.get!(EmailVerificationToken, token_hash))
+
+            # Retorna sucesso dentro da transação
+            {:ok, user}
+          else
+            # Token EXPIRADO! Remove-o e desfaz a transação
+            Repo.delete!(Repo.get!(EmailVerificationToken, token_hash))
+            Repo.rollback(:token_expired) # Retorna :token_expired como erro da transação
+          end
+
+        # --- Padrão 2: Token NÃO encontrado ---
+        nil ->
+          # Desfaz a transação e retorna :invalid_token como erro
+          Repo.rollback(:invalid_token)
+
+        # NÃO HÁ 'else' AQUI! O 'case' termina após os padrões '->'
+      end
+    end)
+    # O resultado da transação será {:ok, user} ou {:error, :token_expired} ou {:error, :invalid_token}
+  end
+
 
   def login_user(email, password) do
     case Repo.get_by(User, email: email) do
       %User{} = user ->
-        #Verifica se a senha fornecida corresponde ao hash guardado
-        if Pbkdf2.verify_pass(password, user.password_hash) do
-          generate_jwt(user)
-        else
-          {:error, :invalid_credentials}
-        end
+        cond do
+          is_nil(user.verified_at) ->
+            {:error, :email_not_verified}
 
+          Pbkdf2.verify_pass(password, user.password_hash) ->
+            generate_jwt(user)
+
+          true ->
+            {:error, :invalid_credentials}
+        end
       nil ->
-        {:error, :invalid_credentials}
+      {:error, :invalid_credentials}
     end
+
   end
 
   @doc """

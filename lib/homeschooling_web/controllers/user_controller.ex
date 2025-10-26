@@ -7,15 +7,20 @@ defmodule HomeschoolingWeb.UserController do
 
     def register(conn, %{"user" => user_params}) do
         case Accounts.register_user(user_params) do
-            {:ok, _user} ->
+            {:ok, :verification_email_sent ,_user} ->
                 conn
                 |> put_status(:created)
-                |> json(%{message: "Usuário registrado com sucesso"})
+                |> json(%{message: "Conta criada. Verifique seu email para ativar."})
 
-            {:error, changeset} ->
+            {:error, %Ecto.Changeset{}=changeset} ->
                 conn
                 |> put_status(:unprocessable_entity)
                 |> json(%{errors: format_errors(changeset)})
+
+            {:error, reason} ->
+                conn
+                |> put_status(:internal_server_error)
+                |> json(%{error: "Ocorreu um erro inesperado durante o registro."})
         end
     end
 
@@ -39,6 +44,11 @@ defmodule HomeschoolingWeb.UserController do
                 |> put_status(:unauthorized)
                 |> json(%{error: %{status: 401, message: "Credenciais inválidas"}})
 
+
+            {:error, :email_not_verified} ->
+                conn
+                |> put_status(:forbidden)
+                |> json(%{error: %{status: 403, message: "Email não verificado. Verifique sua caixa de entrada."}})
         end
     end
 

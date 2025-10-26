@@ -18,11 +18,15 @@ defmodule HomeschoolingWeb.Router do
     post "/users/login", UserController, :login
     post "users/request_password_reset", UserController, :request_password_reset
     post "/users/reset_password", UserController, :reset_password
+    post "/users/verify", VerificationController, :verify
+    post "/users/resend_verification", VerificationController, :resend
 
     options "/users/register", UserController, :register
     options "/users/login", UserController, :login
     options "users/request_password_reset", UserController, :request_password_reset
     options "/users/reset_password", UserController, :reset_password
+    options "/users/verify", VerificationController, :verify
+    options "/users/resend_verification", VerificationController, :resend
   end
 
   scope "/api", HomeschoolingWeb do
