@@ -33,6 +33,10 @@ defmodule HomeschoolingWeb.Router do
     pipe_through [:api, :protected]
 
     get "/me", UserController, :me
+    post "/students", StudentController, :create
+
+    options "/students", StudentController, :create
+
   end
 
   # Enable Swoosh mailbox preview in development

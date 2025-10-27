@@ -45,6 +45,8 @@ defmodule Homeschooling.Repo.Migrations.CreateInitialTables do
     create table(:guardians) do
       add :user_id, references(:users, on_delete: :delete_all, type: :uuid), null: false
       add :student_id, references(:students, on_delete: :delete_all, type: :uuid), null: false
+
+      timestamps()
     end
     create unique_index(:guardians, [:user_id, :student_id])
 

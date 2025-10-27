@@ -5,6 +5,7 @@ defmodule Homeschooling.Accounts do
   alias Homeschooling.Accounts.User
   alias Homeschooling.Accounts.PasswordResetToken
   alias Homeschooling.Accounts.EmailVerificationToken
+  alias Homeschooling.Accounts.{Student, Guardian}
 
   # Registra um novo usuário como não verificado, gera um token de verificação e envia o email correspondente.
   def register_user(attrs) do
@@ -339,6 +340,41 @@ defmodule Homeschooling.Accounts do
           nil ->
             {:error, :invalid_or_expired_token}
         end
+    end
+  end
+
+
+  #Cria um novo aluno para o usuário fornecido,
+  #respeitando os limites do plano e criando a ligação guardian
+  def create_student(%User{}=user, attrs) do
+    # 1. Veriicar limite do plano
+    # Primeiro, contamos quantos alunos o usuário já tem
+    current_student_count = from(g in Guardian, where: g.user_id == ^user.id)
+    |> Repo.aggregate(:count, :student_id)
+
+    #Define os limites (pode vir da config ou estar hardcoded)
+      #busca o mapa de limites definido em config.exe
+    all_limits = Application.get_env(:homeschooling, :subscription_limits, %{})
+      #map.get/3 busca a chave; se não encontrar, retorna o valor padrão 1
+    limit = Map.get(all_limits, user.subscription_tier, 1)
+
+    #Verifica se o limite foi atingido
+    if current_student_count >= limit do
+      {:error, :student_limit_reached}
+    else
+      #Limite OK, tenta criar o aluno e a ligação guardian
+      Ecto.Multi.new()
+      |> Ecto.Multi.insert(:student_insert, Student.changeset(%Student{}, attrs))
+      |> Ecto.Multi.insert(:guardian_insert, fn %{student_insert: student} ->
+        Guardian.changeset(%Guardian{}, %{user_id: user.id, student_id: student.id})
+      end)
+      |> Repo.transaction()
+      |> case do
+        {:ok, %{student_insert: student, guardian_insert: _guardian}} ->
+          {:ok, student}
+        {:error, _operation_name, error_reason, _changes_so_far} ->
+          {:error, error_reason}
+      end
     end
   end
 
