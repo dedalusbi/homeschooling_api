@@ -23,6 +23,7 @@ defmodule HomeschoolingWeb.StudentController do
         |> put_status(:forbidden)
         |> json(%{error: %{status: 403, message: "Limite de alunos atingido."}})
       {:error, %Ecto.Changeset{} = changeset} ->
+        IO.inspect(changeset, label: "!!! Changeset inválido recebido no controller")
         conn
         |> put_status(:unprocessable_entity)
         |> json(%{errors: format_errors(changeset)})

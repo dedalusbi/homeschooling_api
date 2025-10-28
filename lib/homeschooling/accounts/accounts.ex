@@ -373,7 +373,12 @@ defmodule Homeschooling.Accounts do
         {:ok, %{student_insert: student, guardian_insert: _guardian}} ->
           {:ok, student}
         {:error, _operation_name, error_reason, _changes_so_far} ->
-          {:error, error_reason}
+          IO.inspect(error_reason, label: "!!! Erro na transação  create_student ")
+          if  is_struct(error_reason, Ecto.Changeset) do
+            {:error, error_reason}
+          else
+            {:error, error_reason}
+          end
       end
     end
   end

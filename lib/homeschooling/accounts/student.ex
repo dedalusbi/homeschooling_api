@@ -10,7 +10,7 @@ defmodule Homeschooling.Accounts.Student do
     field :name, :string
     field :birth_date, :date
     field :grade_level, :string
-    field :individualities, :map
+    field :individualities, {:array, :map}
 
     #Relação M-to-M com Users através de Guardians
     #many_to_many :users, Homeschooling.Accounts.User, join_through: "guardians"
