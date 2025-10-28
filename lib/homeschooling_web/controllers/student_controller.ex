@@ -48,4 +48,16 @@ defmodule HomeschoolingWeb.StudentController do
     end
 
 
+  # Função para lidar com GET /api/students
+  def index(conn, _params) do
+    current_user = conn.assigns.current_user
+
+    #Chama a função de negócio para buscar os alunos
+    students = Accounts.list_students_for_user(current_user)
+
+    render(conn, :index, students: students)
+
+  end
+
+
 end

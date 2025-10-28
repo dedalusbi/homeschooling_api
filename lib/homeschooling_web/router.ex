@@ -34,6 +34,7 @@ defmodule HomeschoolingWeb.Router do
 
     get "/me", UserController, :me
     post "/students", StudentController, :create
+    get "/students", StudentController, :index
 
     options "/students", StudentController, :create
 

@@ -20,9 +20,12 @@ defmodule Homeschooling.Accounts.Student do
 
   @doc false
   #Change set para criar/atualizar um aluno
-  def changeset(student, attrs) do
-    student
+  def changeset(student_struct, attrs) do
+
+    student_struct
     |> cast(attrs, [:name, :birth_date, :grade_level, :individualities])
     |> validate_required([:name])
   end
+
+
 end

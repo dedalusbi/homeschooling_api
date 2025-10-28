@@ -23,4 +23,9 @@ defmodule HomeschoolingWeb.StudentJSON do
       updated_at: student.updated_at
     }
   end
+
+  def index(%{students: students}) do
+    #Mapeia cda aluno na lista usando a função auxiliar render_student
+    %{data: Enum.map(students, &render_student(&1))}
+  end
 end

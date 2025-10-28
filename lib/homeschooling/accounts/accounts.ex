@@ -384,4 +384,24 @@ defmodule Homeschooling.Accounts do
   end
 
 
+  #--- RETORNA A LISTA DE TODOS OS ALUNOS ASSOCIADOS A UM USUÁRIO ESPECÍFICO ---
+  def list_students_for_user(%User{} = user) do
+    #Esta query faz um JOIN entre students e guardians para encontrar todos os students onde o user_id na tabela
+    #guardians corresponde ao ID do usuário
+    query =
+      from s in Student,
+      join: g in Guardian, on: g.student_id == s.id,
+      where: g.user_id == ^user.id,
+      select: s #Seleciona apenas os dados do aluno
+
+    #Executa a query e retorna a lista de alunos
+    Repo.all(query)
+
+    #Retorna uma lista vazia se o usuário não tiver alunos
+
+  end
+
+
+
+
 end
