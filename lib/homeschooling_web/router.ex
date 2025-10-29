@@ -37,10 +37,12 @@ defmodule HomeschoolingWeb.Router do
     get "/students", StudentController, :index
     get "/students/:id", StudentController, :show
     put "/students/:id", StudentController, :update
+    delete "/students/:id", StudentController, :delete
 
     options "/students", StudentController, :create
     options "/students/:id", StudentController, :show
     options "/students/:id", StudentController, :update
+    options "/students/:id", StudentController, :delete
 
   end
 

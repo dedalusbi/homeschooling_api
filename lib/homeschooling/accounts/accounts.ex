@@ -433,6 +433,17 @@ defmodule Homeschooling.Accounts do
     end
   end
 
+  #Remove um aluno pelo ID, mas apenas se ele pertencer ao usuário fornecido.
+  def delete_student_for_user(%User{}=user, student_id) do
+    case get_student_by_id_for_user(user, student_id) do
+      %Student{} = student ->
+        Repo.delete(student)
+
+      #Se não encontrou ou não tem permissão
+      nil ->
+        {:error, :not_found}
+    end
+  end
 
 
 end
