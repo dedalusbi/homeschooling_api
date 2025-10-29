@@ -40,7 +40,7 @@ defmodule HomeschoolingWeb.Router do
 
     options "/students", StudentController, :create
     options "/students/:id", StudentController, :show
-    options "/students:id", StudentController, :update
+    options "/students/:id", StudentController, :update
 
   end
 
