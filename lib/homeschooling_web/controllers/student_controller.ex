@@ -60,4 +60,20 @@ defmodule HomeschoolingWeb.StudentController do
   end
 
 
+  #Função para lidar com GET /api/students/:id
+  def show(conn, %{"id" => student_id}) do
+    current_user = conn.assigns.current_user
+
+    #chama a função de negócio segura para buscar o aluno
+    case Accounts.get_student_by_id_for_user(current_user, student_id) do
+      %Student{} = student ->
+        render(conn, :student, student: student)
+
+      nil ->
+        conn
+        |> put_status(:not_found)
+        |> json(%{error: %{status: 404, message: "Aluno não encontrado."}})
+    end
+  end
+
 end

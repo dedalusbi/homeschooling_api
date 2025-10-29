@@ -401,6 +401,27 @@ defmodule Homeschooling.Accounts do
 
   end
 
+  #Busca um aluno específico pelo IS, mas apenas se ele pertencer ao usuário
+  def get_student_by_id_for_user(%User{} = user, student_id) do
+  #Query que busca o student pelo ID e verifica se existe uma ligação
+  #na tabela guardians com o user_id do utilizador atual
+    query =
+      from s in Student,
+      join: g in Guardian, on: g.student_id == s.id,
+      where: s.id == ^student_id and g.user_id == ^user.id,
+      select: s
+
+    Repo.one(query)
+  end
+
+
+  #Atualiza um aluno existente, se ele pertencer ao usuário logado
+  #Retorna {:ok, student} em caso de sucesso,
+  #{:error, :not_found} se o aluno não existir ou não pertencer ao usuário,
+  #{:error, changeset} se os dados forem inválidos
+  def update_student_for_user(%User{}=user, student_id, attrs) do
+
+  end
 
 
 
