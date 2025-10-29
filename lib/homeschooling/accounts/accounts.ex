@@ -420,7 +420,17 @@ defmodule Homeschooling.Accounts do
   #{:error, :not_found} se o aluno não existir ou não pertencer ao usuário,
   #{:error, changeset} se os dados forem inválidos
   def update_student_for_user(%User{}=user, student_id, attrs) do
+    case get_student_by_id_for_user(user, student_id) do
+      %Student{} = student ->
+        student
+        |> Student.changeset(attrs)
+        |> Repo.update()
+        #Repo.update() retorna {:ok, student} ou {:error, changeset}
 
+      #Se não encontrou ou não tem permissão
+      nil ->
+        {:error, :not_found}
+    end
   end
 
 

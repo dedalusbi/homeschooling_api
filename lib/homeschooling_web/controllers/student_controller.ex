@@ -76,4 +76,35 @@ defmodule HomeschoolingWeb.StudentController do
     end
   end
 
+
+  #Função para lidar com PUT /api/students/:id
+  def update(conn, %{"id" => student_id, "student" => student_params}) do
+    current_user = conn.assigns.current_user
+
+    #Chama a função de negócio para atualizar o aluno
+    case Accounts.update_student_for_user(current_user, student_id, student_params) do
+      {:ok, student} ->
+        render(conn, :student, student: student)
+      #Aluno não encontrado ou não pertence ao usuário
+      {:error, :not_found} ->
+        conn
+        |> put_status(:not_found)
+        |> json(%{error: %{status: 404, message: "Aluno não encontrado."}})
+      #dados inválidos (changeset com error)
+      {:error, %Ecto.Changeset{} = changeset} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{errors: HomeschoolingWeb.UserController.format_errors(changeset)})
+      #outro erro inesperado
+      {:error, reason} ->
+        IO.inspect(reason, label: "Erro inesperado em update_student")
+        conn
+        |> put_status(:internal_server_error)
+        |> json(%{error: %{status: 500, message: "Erro interno ao atualizar o aluno."}})
+
+    end
+
+  end
+
+
 end
