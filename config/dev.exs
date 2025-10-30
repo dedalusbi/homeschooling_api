@@ -75,3 +75,18 @@ config :homeschooling, Homeschooling.Mailer, adapter: Swoosh.Adapters.Local
 #Configuração para pré-visualizar emails em /dev/mailbox
 config :swoosh, :api_client, false
 config :swoosh, :mailbox_preview, mode: :alias
+
+# Configuração do AWS S3
+config :ex_aws,
+  access_key_id: "AKIAYS2NSFDZRWMOQ2HZ",
+  secret_access_key: "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",
+  region: "us-east-1"
+
+# Configuração específica do S3
+config :ex_aws, :s3,
+  scheme: "https://",
+  host: "s3.amazonaws.com",
+  region: "us-east-1" # Repete a região
+
+# Configuração do Nome do Bucket
+config :homeschooling, :s3_bucket, "educasa-uploads" # ex: "educasa-uploads"

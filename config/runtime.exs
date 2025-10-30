@@ -76,6 +76,21 @@ if config_env() == :prod do
   config :homeschooling, Homeschooling.Mailer, adapter: Swoosh.Adapters.SendGrid, api_key: System.fetch_env!("SENDGRIP_API_KEY") #Definir esta variável em produção
 
 
+  # Configuração do AWS S3
+#config :ex_aws,
+#  access_key_id: System.fetch_env!("AWS_ACCESS_KEY_ID"),
+#  secret_access_key: System.fetch_env!("AWS_SECRET_ACCESS_KEY"),
+#  region: System.fetch_env!("AWS_REGION") # ex: "us-east-1"
+
+# Configuração específica do S3
+#config :ex_aws, :s3,
+#  scheme: "https://",
+#  host: "s3.amazonaws.com",
+#  region: System.fetch_env!("AWS_REGION") # Repete a região
+
+# Configuração do Nome do Bucket
+#config :homeschooling, :s3_bucket, System.fetch_env!("AWS_S3_BUCKET") # ex: "educasa-uploads"
+
   # ## SSL Support
   #
   # To get SSL working, you will need to add the `https` key
