@@ -6,6 +6,7 @@ defmodule Homeschooling.Accounts do
   alias Homeschooling.Accounts.PasswordResetToken
   alias Homeschooling.Accounts.EmailVerificationToken
   alias Homeschooling.Accounts.{Student, Guardian}
+  alias ExAws.S3
 
   # Registra um novo usuário como não verificado, gera um token de verificação e envia o email correspondente.
   def register_user(attrs) do
@@ -444,6 +445,39 @@ defmodule Homeschooling.Accounts do
         {:error, :not_found}
     end
   end
+
+  #Gera uma URL pré-assinada para o upload de uma foto de perfil de aluno.
+  #Verifica se o utilizador tem permissão sobre o  aluno
+  def generate_student_photo_upload_url(%User{}=user, student_id, file_type) do
+    #Verifica se o usuário tem permissão sobre o aluno
+    case get_student_by_id_for_user(user, student_id) do
+      %Student{} =student ->
+        #Define o nome do arquivo no S3 (ex.: uploads/students/UUID/profile_pic.jpg)
+        #Usar o ID do aluno garante que é único e oganizado
+        extension = String.split(file_type,"/") |> List.last() |> String.trim()
+        s3_key = "/uploads/students/#{student.id}/profile.#{extension}"
+
+        #Obtém o nome do bucket da configuração
+        bucket = "educasa-uploads"
+
+        #Gera a url pré-assinada para um PUT, válida por 5 minutos (300 segundos)
+        case S3.presigned_url(:put_object, s3_key, expires_in: 300, content_type: file_type) do
+          {:ok, upload_url} ->
+            #Gera o URL público que será guardado na base de dados
+            #(assumindo que o bucker está configurado para leitura pública)
+            public_url = "https://#{bucket}.s3.amazonaws.com/#{s3_key}"
+            {:ok, %{upload_url: upload_url, public_url: public_url}}
+          {:error, reason} ->
+            {:error, {:s3_error, reason}}
+        end
+
+      nil ->
+        {:error, :not_found}
+    end
+  end
+
+
+
 
 
 end
