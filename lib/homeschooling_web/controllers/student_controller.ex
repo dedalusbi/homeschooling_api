@@ -126,25 +126,4 @@ defmodule HomeschoolingWeb.StudentController do
     end
   end
 
-
-
-  def generate_upload_url(conn, %{"id" => student_id, "file_type" => file_type}) do
-    current_user = conn.assigns.current_user
-
-    case Accounts.generate_student_photo_upload_url(current_user, student_id, file_type) do
-      {:ok, urls} ->
-        json(conn, %{data: urls})
-
-      {:error, :not_found} ->
-        conn |> put_status(:not_found) |> json(%{error: "Aluno não encontrado"})
-
-      {:error, {:s3_error, reason}} ->
-        IO.inspect(reason, label: "erro ao gerar URL S3")
-        conn |> put_status(:internal_server_error) |> json(%{error: "Não foi possível gerar o URL de upload"})
-    end
-  end
-  def generate_upload_url(conn, _params) do
-    conn |> put_status(:bad_request) |> json(%{error: "file_type em falta"})
-  end
-
 end

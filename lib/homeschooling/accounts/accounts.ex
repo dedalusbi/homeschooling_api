@@ -8,6 +8,19 @@ defmodule Homeschooling.Accounts do
   alias Homeschooling.Accounts.{Student, Guardian}
   alias ExAws.S3
 
+  @default_avatars [
+    "imagemavatar1.png",
+    "imagemavatar2.png",
+    "imagemavatar3.png",
+    "imagemavatar4.png",
+    "imagemavatar5.png",
+    "imagemavatar6.png",
+    "imagemavatar7.png",
+    "imagemavatar8.png",
+    "imagemavatar9.png",
+    "imagemavatar10.png",
+  ]
+
   # Registra um novo usuário como não verificado, gera um token de verificação e envia o email correspondente.
   def register_user(attrs) do
     # Usando Ecto.Multi() para agrupar várias operações de base de dados que devem acontecer juntar (ou falhar juntas)
@@ -359,13 +372,21 @@ defmodule Homeschooling.Accounts do
       #map.get/3 busca a chave; se não encontrar, retorna o valor padrão 1
     limit = Map.get(all_limits, user.subscription_tier, 1)
 
+
+    # --- lógica de avatar
+    #escolhe um avatar aleatório da lista
+    random_avatar_id=Enum.random(@default_avatars)
+    #Adicina o avatar_id aos atributos antes de enviar para o changeset
+    attrs_with_avatar = Map.put(attrs, "avatar_id", random_avatar_id)
+
+
     #Verifica se o limite foi atingido
     if current_student_count >= limit do
       {:error, :student_limit_reached}
     else
       #Limite OK, tenta criar o aluno e a ligação guardian
       Ecto.Multi.new()
-      |> Ecto.Multi.insert(:student_insert, Student.changeset(%Student{}, attrs))
+      |> Ecto.Multi.insert(:student_insert, Student.changeset(%Student{}, attrs_with_avatar))
       |> Ecto.Multi.insert(:guardian_insert, fn %{student_insert: student} ->
         Guardian.changeset(%Guardian{}, %{user_id: user.id, student_id: student.id})
       end)
@@ -421,10 +442,14 @@ defmodule Homeschooling.Accounts do
   #{:error, :not_found} se o aluno não existir ou não pertencer ao usuário,
   #{:error, changeset} se os dados forem inválidos
   def update_student_for_user(%User{}=user, student_id, attrs) do
+
+    #Remove avatar_id e profile_picture_url, o usuário não deve poder mudar diretamente
+    attrs_cleaned = Map.drop(attrs, ["avatar_id", "profile_picture_url"])
+
     case get_student_by_id_for_user(user, student_id) do
       %Student{} = student ->
         student
-        |> Student.changeset(attrs)
+        |> Student.changeset(attrs_cleaned)
         |> Repo.update()
         #Repo.update() retorna {:ok, student} ou {:error, changeset}
 

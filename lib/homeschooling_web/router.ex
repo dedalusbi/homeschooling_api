@@ -38,13 +38,11 @@ defmodule HomeschoolingWeb.Router do
     get "/students/:id", StudentController, :show
     put "/students/:id", StudentController, :update
     delete "/students/:id", StudentController, :delete
-    post "/students/:id/generate_upload_url", StudentController, :generate_upload_url
 
     options "/students", StudentController, :create
     options "/students/:id", StudentController, :show
     options "/students/:id", StudentController, :update
     options "/students/:id", StudentController, :delete
-    options "/students/:id/generate_upload_url", StudentController, :generate_upload_url
 
   end
 

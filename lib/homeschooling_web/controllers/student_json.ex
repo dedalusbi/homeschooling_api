@@ -19,6 +19,7 @@ defmodule HomeschoolingWeb.StudentJSON do
       birth_date: student.birth_date,
       grade_level: student.grade_level,
       individualities: student.individualities,
+      avatar_id: student.avatar_id,
       inserted_at: student.inserted_at,
       updated_at: student.updated_at
     }
