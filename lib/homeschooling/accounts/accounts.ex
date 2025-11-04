@@ -5,7 +5,7 @@ defmodule Homeschooling.Accounts do
   alias Homeschooling.Accounts.User
   alias Homeschooling.Accounts.PasswordResetToken
   alias Homeschooling.Accounts.EmailVerificationToken
-  alias Homeschooling.Accounts.{Student, Guardian}
+  alias Homeschooling.Accounts.{Student, Guardian, Subject}
   alias ExAws.S3
 
   @default_avatars [
@@ -502,7 +502,50 @@ defmodule Homeschooling.Accounts do
   end
 
 
+  #Retorna a lista de matérias para um aluno específico,
+  #opcionalmente filtrada pelo status
+  def list_subjects_for_student(%Student{}=student, filters) do
+    #Começa a query pela tabela `subjects`
+    query = from s in Subject, where: s.student_id == ^student.id
 
+    #Aplica o filtro de status, se ele for fornecido
+    query =
+      case Map.get(filters, "status") do
+        nil ->
+          query
+        "all" ->
+          query
+        status ->
+          "Converte a string 'actve' para o átomo ':active'"
+          status_atom = String.to_atom(status)
+          from s in query, where: s.status == ^status_atom
+      end
+
+
+    #Ordena por nome da matéria
+    query = from s in query, order_by: s.name
+
+    #Executa a query e retorna a lista de matérias
+    Repo.all(query)
+  end
+
+
+  #Cria uma nova matéria para um aluno específico, se o usuário tiver permissão
+  def create_subject_for_student(%User{}=user, student_id, attrs) do
+    #Verifica se o usuário tem permissão sobre o aluno
+    case get_student_by_id_for_user(user, student_id) do
+      %Student{} = student ->
+        #Prepara os atributos e associa o student_id
+        subject_attrs = Map.put(attrs, "student_id", student.id)
+        #Cria o changeset
+        %Subject{}
+        |> Subject.changeset(subject_attrs)
+        |> Repo.insert()
+
+      nil ->
+        {:error, :not_found}
+    end
+  end
 
 
 end
