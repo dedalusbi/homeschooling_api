@@ -3,6 +3,7 @@ defmodule HomeschoolingWeb.SubjectController do
 
   alias Homeschooling.Accounts
   alias Homeschooling.Accounts.Student
+  alias Homeschooling.Accounts.Subject
 
 
 
@@ -51,6 +52,21 @@ defmodule HomeschoolingWeb.SubjectController do
         IO.inspect(reason, label: "Erro inesperado no create_subject")
         conn |> put_status(:internal_server_error) |> json(%{error: %{status: 500, message: "Erro interno."}})
 
+    end
+  end
+
+
+  def show(conn, %{"id" => subject_id}) do
+    current_user = conn.assigns.current_user
+
+    case Accounts.get_subject_by_id_for_user(current_user, subject_id) do
+      %Subject{}=subject ->
+        render(conn, :subject, subject: subject)
+
+      nil ->
+        conn
+        |> put_status(:not_found)
+        |> json(%{error: %{status: 404, message: "Matéria não encontrada"}})
     end
   end
 

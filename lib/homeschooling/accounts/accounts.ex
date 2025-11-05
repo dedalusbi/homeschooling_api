@@ -547,6 +547,18 @@ defmodule Homeschooling.Accounts do
     end
   end
 
+  #Busca uma matéria especíica pelo seu ID, mas apenas se o usuário logado
+    #for um responsável pelo aluno ao qual a matéria pertence
+  def get_subject_by_id_for_user(%User{}=user, subject_id) do
+    query=
+      from s in Subject,
+      join: st in Student, on: s.student_id == st.id,
+      join: g in Guardian, on: g.student_id == st.id,
+      where: s.id == ^subject_id and g.user_id == ^user.id,
+      select: s
+
+    Repo.one(query)
+  end
 
 
 

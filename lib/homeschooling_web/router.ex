@@ -40,6 +40,7 @@ defmodule HomeschoolingWeb.Router do
     delete "/students/:id", StudentController, :delete
     get "/students/:student_id/subjects", SubjectController, :index
     post "/students/:student_id/subjects", SubjectController, :create
+    get "/subjects/:id", SubjectController, :show
 
     options "/students", StudentController, :create
     options "/students/:id", StudentController, :show
@@ -47,6 +48,7 @@ defmodule HomeschoolingWeb.Router do
     options "/students/:id", StudentController, :delete
     options "/students/:student_id/subjects", SubjectController, :index
     options "/students/:student_id/subjects", SubjectController, :create
+    options "/subjects/:id", SubjectController, :show
 
   end
 
