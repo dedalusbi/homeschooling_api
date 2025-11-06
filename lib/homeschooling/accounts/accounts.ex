@@ -5,7 +5,7 @@ defmodule Homeschooling.Accounts do
   alias Homeschooling.Accounts.User
   alias Homeschooling.Accounts.PasswordResetToken
   alias Homeschooling.Accounts.EmailVerificationToken
-  alias Homeschooling.Accounts.{Student, Guardian, Subject}
+  alias Homeschooling.Accounts.{Student, Guardian, Subject, SubjectCompletion}
   alias ExAws.S3
 
   @default_avatars [
@@ -575,5 +575,44 @@ defmodule Homeschooling.Accounts do
     end
   end
 
+
+  #Finaliza uma matéria:atualiza o status e cria o relatório de conclusão
+  #Verifica se o usuário tem permissão
+  def complete_subject_for_user(%User{}=user, subject_id, report_attrs) do
+    case get_subject_by_id_for_user(user, subject_id) do
+      %Subject{status: :active}=subject ->
+        completion_attrs = Map.merge(report_attrs, %{
+          "subject_id" => subject_id,
+          "completion_date" => Date.utc_today()
+        })
+
+        Ecto.Multi.new()
+        #atualiza o status da matéria para completed
+        |> Ecto.Multi.update(:update_subject_status,
+          Ecto.Changeset.change(subject, %{status: :completed}))
+        #Insere o novo relatório de conclusão
+        |> Ecto.Multi.insert(:insert_completion_report,
+          SubjectCompletion.changeset(%SubjectCompletion{}, completion_attrs)
+        )
+        |> Repo.transaction()
+        |> case do
+          {:ok, %{update_subject_status: updated_subject, insert_completion_report: _report}} ->
+            {:ok, updated_subject}
+
+          {:error, :insert_completion_report, changeset, _changes_so_far} ->
+            {:error, changeset}
+
+          {:error, _operation, reason, _changes} ->
+            {:error, reason}
+
+          end
+
+      %Subject{status: :completed} ->
+        {:error, :already_completed}
+
+      nil ->
+        {:error, :not_found}
+    end
+  end
 
 end

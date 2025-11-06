@@ -98,5 +98,35 @@ defmodule HomeschoolingWeb.SubjectController do
   end
 
 
+   def complete(conn, %{"id" => subject_id, "report" => report_params}) do
+    current_user = conn.assigns.current_user
+
+    case Accounts.complete_subject_for_user(current_user, subject_id, report_params) do
+      {:ok, subject} ->
+        render(conn, :subject, subject: subject)
+
+      {:error, :not_found} ->
+        conn
+        |> put_status(:not_found)
+        |> json(%{error: "Matéria não encontrada."})
+
+      {:error, :already_completed} ->
+        conn
+        |> put_status(:conflict)
+        |> json(%{error: "Esta matéria já está concluída."})
+
+      #Erro: dados da matéria inválidos
+      {:error, %Ecto.Changeset{} = changeset} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{errors: HomeschoolingWeb.UserController.format_errors(changeset)})
+
+      #Outro erro
+      {:error, reason} ->
+        IO.inspect(reason, label: "Erro inesperado no complete_subject")
+        conn |> put_status(:internal_server_error) |> json(%{error: "Erro interno."})
+    end
+  end
+
 
 end

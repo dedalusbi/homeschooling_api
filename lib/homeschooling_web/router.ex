@@ -42,6 +42,7 @@ defmodule HomeschoolingWeb.Router do
     post "/students/:student_id/subjects", SubjectController, :create
     get "/subjects/:id", SubjectController, :show
     put "/subjects/:id", SubjectController, :update
+    post "/subjects/:id/complete", SubjectController, :complete
 
     options "/students", StudentController, :create
     options "/students/:id", StudentController, :show
@@ -51,6 +52,7 @@ defmodule HomeschoolingWeb.Router do
     options "/students/:student_id/subjects", SubjectController, :create
     options "/subjects/:id", SubjectController, :show
     options "/subjects/:id", SubjectController, :update
+    options "/subjects/:id/complete", SubjectController, :complete
 
   end
 
