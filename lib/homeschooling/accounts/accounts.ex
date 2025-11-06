@@ -615,4 +615,35 @@ defmodule Homeschooling.Accounts do
     end
   end
 
+
+  #Reativa uma matéria finalizada: atualzia o status para actve
+  def reactivate_subject_for_user(%User{}=user, subject_id) do
+    #Busca a matéria garantindo que o usuário tenha permissão sobre ela
+    case get_subject_by_id_for_user(user, subject_id) do
+      %Subject{status: :completed}=subject ->
+        Ecto.Multi.new()
+        |> Ecto.Multi.delete_all(:remove_report,
+           (from sc in SubjectCompletion, where: sc.subject_id == ^subject.id)
+         )
+        |> Ecto.Multi.update(:update_subject_status,
+          Ecto.Changeset.change(subject, %{status: :active})
+        )
+        |> Repo.transaction()
+        |> case do
+          {:ok, %{update_subject_status: reactivated_subject}} ->
+            {:ok, reactivated_subject}
+
+          {:error, _operation, reason, _changes} ->
+            {:error, reason}
+          end
+
+      %Subject{status: :active} ->
+        {:error, :already_active}
+
+
+      nil ->
+        {:error, :not_found}
+    end
+  end
+
 end
