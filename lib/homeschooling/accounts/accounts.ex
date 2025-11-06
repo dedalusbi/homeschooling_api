@@ -561,5 +561,19 @@ defmodule Homeschooling.Accounts do
   end
 
 
+  #Atualiza uma matéria existente, se ela pertencer ao usuário fornecido.
+  def update_subject_for_user(%User{}=user, subject_id, attrs) do
+    #Busca a matéria garantindo que o usuário tenha permissão sobre ela
+    case get_subject_by_id_for_user(user, subject_id) do
+      %Subject{}=subject ->
+        subject
+        |> Subject.changeset(attrs)
+        |> Repo.update()
+
+      nil ->
+        {:error, :not_found}
+    end
+  end
+
 
 end

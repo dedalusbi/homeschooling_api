@@ -71,4 +71,32 @@ defmodule HomeschoolingWeb.SubjectController do
   end
 
 
+
+  def update(conn, %{"id" => subject_id, "subject" => subject_params}) do
+    current_user = conn.assigns.current_user
+
+    case Accounts.update_subject_for_user(current_user, subject_id, subject_params) do
+      {:ok, subject} ->
+        render(conn, :subject, subject: subject)
+
+      {:error, :not_found} ->
+        conn
+        |> put_status(:not_found)
+        |> json(%{error: %{status: 404, message: "Matéria não encontrada."}})
+
+      #Erro: dados da matéria inválidos
+      {:error, %Ecto.Changeset{} = changeset} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{errors: HomeschoolingWeb.UserController.format_errors(changeset)})
+
+      #Outro erro
+      {:error, reason} ->
+        IO.inspect(reason, label: "Erro inesperado no update_subject")
+        conn |> put_status(:internal_server_error) |> json(%{error: %{status: 500, message: "Erro interno."}})
+    end
+  end
+
+
+
 end
