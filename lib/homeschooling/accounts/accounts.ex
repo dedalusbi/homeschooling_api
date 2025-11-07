@@ -5,7 +5,7 @@ defmodule Homeschooling.Accounts do
   alias Homeschooling.Accounts.User
   alias Homeschooling.Accounts.PasswordResetToken
   alias Homeschooling.Accounts.EmailVerificationToken
-  alias Homeschooling.Accounts.{Student, Guardian, Subject, SubjectCompletion}
+  alias Homeschooling.Accounts.{Student, Guardian, Subject, SubjectCompletion, ScheduleEntry}
   alias ExAws.S3
 
   @default_avatars [
@@ -664,5 +664,39 @@ defmodule Homeschooling.Accounts do
         {:error, :not_found}
     end
   end
+
+
+  #Retorna a lista de todas as entradas do cronograma (aulas recorrentes)
+  #para um aluno específico, se o usuário tiver permissão
+  def list_schedule_for_student(%User{}=user, student_id) do
+    case get_student_by_id_for_user(user, student_id) do
+
+      %Student{}=student ->
+        query=
+          from se in ScheduleEntry,
+          where: se.student_id == ^student.id,
+          join: s in Subject, on: s.id == se.subject_id,
+          order_by: [se.day_of_week, se.start_time],
+          select: %{
+            id: se.id,
+            student_id: se.student_id,
+            subject_id: se.subject_id,
+            subject_name: s.name,
+            assigned_guardian_id: se.assigned_guardian_id,
+            day_of_week: se.day_of_week,
+            start_time: se.start_time,
+            end_time: se.end_time
+          }
+
+        {:ok, Repo.all(query)}
+
+      nil ->
+        {:error, :not_found}
+
+    end
+  end
+
+
+
 
 end
