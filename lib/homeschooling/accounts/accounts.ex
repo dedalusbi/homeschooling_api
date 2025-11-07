@@ -557,7 +557,12 @@ defmodule Homeschooling.Accounts do
       where: s.id == ^subject_id and g.user_id == ^user.id,
       select: s
 
-    Repo.one(query)
+    case Repo.one(query) do
+      nil ->
+        nil
+      %Subject{}=subject ->
+        Repo.preload(subject, :completion)
+    end
   end
 
 

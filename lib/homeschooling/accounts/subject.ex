@@ -5,7 +5,7 @@ defmodule Homeschooling.Accounts.Subject do
 
   @primary_key {:id, Ecto.UUID, autogenerate: true}
   @foreign_key_type Ecto.UUID
-  @derive {Jason.Encoder, only: [:id, :student_id, :name, :description, :status, :inserted_at]}
+  @derive {Jason.Encoder, only: [:id, :student_id, :name, :description, :status, :inserted_at, :completion]}
 
   schema "subjects" do
     field :name, :string
@@ -13,6 +13,8 @@ defmodule Homeschooling.Accounts.Subject do
     field :status, Ecto.Enum, values: [:active, :completed], default: :active
 
     belongs_to :student, Homeschooling.Accounts.Student, type: Ecto.UUID
+
+    has_one :completion, Homeschooling.Accounts.SubjectCompletion
 
     timestamps()
   end
