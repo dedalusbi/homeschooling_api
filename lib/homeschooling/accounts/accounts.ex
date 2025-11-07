@@ -651,4 +651,18 @@ defmodule Homeschooling.Accounts do
     end
   end
 
+
+
+  #Remove permanentemente uma matéria e todos os seus dados associados (aulas, avaliações, relatórios)
+  def delete_subject_for_user(%User{}=user, subject_id) do
+
+    case get_subject_by_id_for_user(user, subject_id) do
+      %Subject{}=subject ->
+        Repo.delete(subject)
+
+      nil ->
+        {:error, :not_found}
+    end
+  end
+
 end

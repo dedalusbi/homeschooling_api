@@ -153,4 +153,24 @@ defmodule HomeschoolingWeb.SubjectController do
     end
   end
 
+  def delete(conn, %{"id" => subject_id}) do
+    current_user = conn.assigns.current_user
+
+    case Accounts.delete_subject_for_user(current_user, subject_id) do
+      {:ok, _subject_struct} ->
+        send_resp(conn, :no_content, "")
+
+      {:error, :not_found} ->
+        conn
+        |> put_status(:not_found)
+        |> json(%{error: %{status: 404, message: "Matéria não encontrada."}})
+
+      #Outro erro
+      {:error, reason} ->
+        IO.inspect(reason, label: "Erro inesperado no delete_subject")
+        conn |> put_status(:internal_server_error) |> json(%{error: "Erro interno."})
+    end
+  end
+
+
 end
