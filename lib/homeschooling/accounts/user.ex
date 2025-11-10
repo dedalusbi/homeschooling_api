@@ -5,14 +5,14 @@ defmodule Homeschooling.Accounts.User do
 
   @primary_key {:id, Ecto.UUID, autogenerate: true}
   @foreign_key_type Ecto.UUID
-  @derive {Jason.Encoder, only: [:id, :email, :full_name, :profile_picture_url, :subscription_tier, :ai_requests_count]}
+  @derive {Jason.Encoder, only: [:id, :email, :full_name, :avatar_id, :subscription_tier, :ai_requests_count]}
   @schema_prefix "public"
   schema "users" do
     field :email, :string
     field :full_name, :string
     field :password_hash, :string
     field :password, :string, virtual: true
-    field :profile_picture_url, :string
+    field :avatar_id, :string
     field :subscription_tier, Ecto.Enum, values: [:essential, :family, :educator]
     field :ai_requests_count, :integer
     field :payment_gateway_customer_id, :string

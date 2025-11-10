@@ -20,6 +20,10 @@ defmodule HomeschoolingWeb.ScheduleController do
         |> put_status(:not_found)
         |> json(%{error: %{status: 404, message: "Aluno não encontrado."}})
 
+
+      {:error, :date_range_required} ->
+        conn |> put_status(:bad_request) |> json(%{error: "Intervalo de datas é obrigatório."})
+
       #Outro erro
       {:error, reason} ->
         IO.inspect(reason, label: "Erro inesperado em list_schedule")
@@ -33,9 +37,14 @@ defmodule HomeschoolingWeb.ScheduleController do
 
     filters = Map.get(params, "filter", %{})
 
-    {:ok, schedule_entries} = Accounts.list_all_schedules_for_user(current_user, filters)
+    case Accounts.list_all_schedules_for_user(current_user, filters) do
+      {:ok, schedule_entries} ->
+        json(conn, %{data: schedule_entries})
 
-    json(conn, %{data: schedule_entries})
+      {:error, :date_range_required} ->
+          conn |> put_status(:bad_request) |> json(%{error: "Intervalo de datas é obrigatório."})
+      end
+
 
   end
 

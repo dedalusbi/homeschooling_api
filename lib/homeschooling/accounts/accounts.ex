@@ -23,10 +23,11 @@ defmodule Homeschooling.Accounts do
 
   # Registra um novo usuário como não verificado, gera um token de verificação e envia o email correspondente.
   def register_user(attrs) do
+    attrs_with_avatar = Map.put(attrs, "avatar_id", Enum.random(@default_avatars))
     # Usando Ecto.Multi() para agrupar várias operações de base de dados que devem acontecer juntar (ou falhar juntas)
     Ecto.Multi.new()
     # 1. Tentando inserir o usuário utilizando o changeset de registro
-    |> Ecto.Multi.insert(:user, %User{} |> User.registration_changeset(attrs))
+    |> Ecto.Multi.insert(:user, %User{} |> User.registration_changeset(attrs_with_avatar))
     # 1. Se o usuário foi inserido, gera e insere o token de verificação
     |> Ecto.Multi.run(:verification_token, fn repo, %{user: user} ->
       generate_and_insert_verification_token(repo, user) end)
@@ -671,10 +672,10 @@ defmodule Homeschooling.Accounts do
   def list_schedule_for_student(%User{}=user, student_id, filters \\ %{}) do
 
     week_start = Map.get(filters, "week_start")
-    week_end = Map.get(filter, "week_end")
+    week_end = Map.get(filters, "week_end")
 
     if is_nil(week_start) or is_nil(week_end) do
-      return {:error, :data_range_required}
+      {:error, :data_range_required}
     end
 
     case get_student_by_id_for_user(user, student_id) do
@@ -687,12 +688,14 @@ defmodule Homeschooling.Accounts do
             (se.start_date <= ^week_end) and
             (is_nil(se.end_date) or se.end_date >= ^week_start),
           join: s in Subject, on: s.id == se.subject_id,
+          left_join: u in User, on: u.id == se.assigned_guardian_id,
           order_by: [se.day_of_week, se.start_time],
           select: %{
             id: se.id,
             student_id: se.student_id,
             subject_id: se.subject_id,
             subject_name: s.name,
+            responsible_avatar_id: u.avatar_id,
             student_name: ^student.name,
             assigned_guardian_id: se.assigned_guardian_id,
             day_of_week: se.day_of_week,
@@ -727,6 +730,16 @@ defmodule Homeschooling.Accounts do
 
       %Student{} =student ->
         days_of_week = Map.get(attrs, "days_of_week", [])
+        base_attrs = Map.drop(attrs, ["days_of_week"])
+          |> Map.put("student_id", student.id)
+
+        #Lógica para end_date
+        base_attrs =
+          if Map.get(base_attrs, "end_date") == "" do
+            Map.put(base_attrs, "end_date", nil)
+          else
+            base_attrs
+          end
 
         #LÓGICA DE VERIFICAÇÃO DE HORÁRIO CONFLITANTE
 
@@ -752,9 +765,7 @@ defmodule Homeschooling.Accounts do
           conflicts = Repo.all(conflicts_query)
           if conflicts == [] do
             multi = Enum.reduce(days_of_week, Ecto.Multi.new(), fn day, multi ->
-              aula_attrs = Map.put(attrs, "day_of_week", day)
-                            |> Map.drop(["days_of_week"])
-                            |> Map.put("student_id", student.id)
+              aula_attrs = Map.put(base_attrs, "day_of_week", day)
               Ecto.Multi.insert(multi, "insert_day_#{day}", ScheduleEntry.changeset(%ScheduleEntry{}, aula_attrs))
             end)
 
@@ -822,12 +833,24 @@ defmodule Homeschooling.Accounts do
   #Retorna TODAS as entradas do cronograma para TODOS os alunos de um usuário,
   #com filtros opcionais
   def list_all_schedules_for_user(%User{}=user, filters \\ %{}) do
+
+    week_start = Map.get(filters, "week_start")
+    week_end = Map.get(filters, "week_end")
+
+    if is_nil(week_start) or is_nil(week_end) do
+      {:error, :data_range_required}
+    end
+
     query =
       from g in Guardian,
       where: g.user_id == ^user.id,
       join: st in Student, on: st.id == g.student_id,
       join: se in ScheduleEntry, on: se.student_id == st.id,
+      where:
+        (se.start_date <= ^week_end) and
+        (is_nil(se.end_date) or se.end_date >= ^week_start),
       join: s in Subject, on: s.id == se.subject_id,
+      left_join: u in User, on: u.id == se.assigned_guardian_id,
       order_by: [se.day_of_week, se.start_time],
       select: %{
         id: se.id,
@@ -836,6 +859,7 @@ defmodule Homeschooling.Accounts do
         subject_name: s.name,
         student_name: st.name,
         assigned_guardian_id: se.assigned_guardian_id,
+        responsible_avatar_id: u.avatar_id,
         day_of_week: se.day_of_week,
         start_time: se.start_time,
         end_time: se.end_time
