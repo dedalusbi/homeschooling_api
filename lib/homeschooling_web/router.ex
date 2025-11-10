@@ -46,6 +46,7 @@ defmodule HomeschoolingWeb.Router do
     post "/subjects/:id/reactivate", SubjectController, :reactivate
     delete "/subjects/:id", SubjectController, :delete
     get "/students/:student_id/schedules", ScheduleController, :index
+    get "/schedules/all", ScheduleController, :index_all
     post "/schedules", ScheduleController, :create
     get "/schedules/:id", ScheduleController, :show
     put "/schedules/:id", ScheduleController, :update
@@ -68,6 +69,7 @@ defmodule HomeschoolingWeb.Router do
     options "/schedules/:id", ScheduleController, :show
     options "/schedules/:id", ScheduleController, :update
     options "/schedules/:id", ScheduleController, :delete
+    options "/schedules/all", ScheduleController, :index_all
   end
 
   # Enable Swoosh mailbox preview in development

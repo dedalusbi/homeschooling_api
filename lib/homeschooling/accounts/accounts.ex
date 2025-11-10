@@ -668,7 +668,7 @@ defmodule Homeschooling.Accounts do
 
   #Retorna a lista de todas as entradas do cronograma (aulas recorrentes)
   #para um aluno específico, se o usuário tiver permissão
-  def list_schedule_for_student(%User{}=user, student_id) do
+  def list_schedule_for_student(%User{}=user, student_id, filters \\ %{}) do
     case get_student_by_id_for_user(user, student_id) do
 
       %Student{}=student ->
@@ -682,11 +682,21 @@ defmodule Homeschooling.Accounts do
             student_id: se.student_id,
             subject_id: se.subject_id,
             subject_name: s.name,
+            student_name: ^student.name,
             assigned_guardian_id: se.assigned_guardian_id,
             day_of_week: se.day_of_week,
             start_time: se.start_time,
             end_time: se.end_time
           }
+
+          #Aplica o filtro "apenas minhas aulas" se "only_mine" for true
+
+          query =
+            if Map.get(filters, "only_mine", "false") == "true" do
+              query |> where([se, s], se.assigned_guardian_id == ^user.id)
+            else
+              query
+            end
 
         {:ok, Repo.all(query)}
 
@@ -794,6 +804,38 @@ defmodule Homeschooling.Accounts do
       {:error, :not_found} ->
         {:error, :not_found}
     end
+  end
+
+  #Retorna TODAS as entradas do cronograma para TODOS os alunos de um usuário,
+  #com filtros opcionais
+  def list_all_schedules_for_user(%User{}=user, filters \\ %{}) do
+    query =
+      from g in Guardian,
+      where: g.user_id == ^user.id,
+      join: st in Student, on: st.id == g.student_id,
+      join: se in ScheduleEntry, on: se.student_id == st.id,
+      join: s in Subject, on: s.id == se.subject_id,
+      order_by: [se.day_of_week, se.start_time],
+      select: %{
+        id: se.id,
+        student_id: se.student_id,
+        subject_id: se.subject_id,
+        subject_name: s.name,
+        student_name: st.name,
+        assigned_guardian_id: se.assigned_guardian_id,
+        day_of_week: se.day_of_week,
+        start_time: se.start_time,
+        end_time: se.end_time
+      }
+
+    query =
+      if Map.get(filters, "only_mine", "false") == "true" do
+        query |> where([g, st, se, s], se.assigned_guardian_id == ^user.id)
+      else
+        query
+      end
+
+    {:ok, Repo.all(query)}
   end
 
 

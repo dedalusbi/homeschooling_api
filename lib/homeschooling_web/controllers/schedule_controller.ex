@@ -4,10 +4,12 @@ defmodule HomeschoolingWeb.ScheduleController do
   alias Homeschooling.Accounts
 
   #Função para lidar com GET /api/students/:student_id/schedules
-  def index(conn, %{"student_id" => student_id}) do
+  def index(conn, %{"student_id" => student_id} = params) do
     current_user = conn.assigns.current_user
 
-    case Accounts.list_schedule_for_student(current_user, student_id) do
+    filters = Map.get(params, "filter", %{})
+
+    case Accounts.list_schedule_for_student(current_user, student_id, filters) do
       #Sucesso
       {:ok, schedule_entries} ->
         json(conn, %{data: schedule_entries})
@@ -23,6 +25,18 @@ defmodule HomeschoolingWeb.ScheduleController do
         IO.inspect(reason, label: "Erro inesperado em list_schedule")
         conn |> put_status(:internal_server_error) |> json(%{error: "Erro interno."})
     end
+  end
+
+  #Função para lidar com GET /api/schedule/all
+  def index_all(conn, params) do
+    current_user = conn.assigns.current_user
+
+    filters = Map.get(params, "filter", %{})
+
+    {:ok, schedule_entries} = Accounts.list_all_schedules_for_user(current_user, filters)
+
+    json(conn, %{data: schedule_entries})
+
   end
 
 
