@@ -696,7 +696,74 @@ defmodule Homeschooling.Accounts do
     end
   end
 
+  #Cria múltiplas entradas no cronograma (aulas) para um aluno,
+  #uma para cada dia da semana fornecido.
+  def create_schedule_entries(%User{}=user, student_id, attrs) do
 
+    case get_student_by_id_for_user(user, student_id) do
+
+      %Student{} =student ->
+        days_of_week = Map.get(attrs, "days_of_week", [])
+        base_attrs = Map.drop(attrs, ["days_of_week"]) |> Map.put("student_id", student.id)
+
+        multi = Enum.reduce(days_of_week, Ecto.Multi.new(), fn day, multi ->
+          aula_attrs = Map.put(base_attrs, "day_of_week", day)
+          Ecto.Multi.insert(multi, "insert_day_#{day}", ScheduleEntry.changeset(%ScheduleEntry{}, aula_attrs))
+        end)
+
+        case Repo.transaction(multi) do
+          {:ok, result_map} ->
+            {:ok, Map.values(result_map)}
+
+          {:error, _operation_name, error_reason, _changes} ->
+            {:error, error_reason}
+        end
+
+      nil ->
+        {:error, :not_found}
+    end
+  end
+
+
+  def get_schedule_entry_for_user(%User{}=user, entry_id) do
+    query=
+      from se in ScheduleEntry,
+      join: s in Student, on: se.student_id == s.id,
+      join: g in Guardian, on: g.student_id == s.id,
+      where: se.id == ^entry_id and g.user_id == ^user.id,
+      select: se
+
+    case Repo.one(query) do
+      nil -> {:error, :not_found}
+      entry -> {:ok, Repo.preload(entry, [:student, :subject])}
+    end
+  end
+
+  #Atualiza uma única entrada no cronograma (aula)
+  def update_schedule_entry_for_user(%User{}=user, entry_id, attrs) do
+    case get_schedule_entry_for_user(user, entry_id) do
+      {:ok, entry} ->
+        attrs = Map.put_new(attrs, "day_of_week", entry.day_of_week)
+        entry
+        |> ScheduleEntry.changeset(attrs)
+        |> Repo.update()
+
+      {:error, :not_found} ->
+        {:error, :not_found}
+    end
+  end
+
+
+  #Remove uma única entrada do cronograma(aula)
+  def delete_schedule_entry_for_user(%User{}=user, entry_id) do
+    case get_schedule_entry_for_user(user, entry_id) do
+      {:ok, entry} ->
+        Repo.delete(entry)
+
+      {:error, :not_found} ->
+        {:error, :not_found}
+    end
+  end
 
 
 end

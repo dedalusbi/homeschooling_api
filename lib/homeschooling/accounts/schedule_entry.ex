@@ -7,6 +7,9 @@ defmodule Homeschooling.Accounts.ScheduleEntry do
   @primary_key {:id, Ecto.UUID, autogenerate: true}
   @foreign_key_type Ecto.UUID
 
+  @derive {Jason.Encoder, only: [
+    :id, :day_of_week, :start_time, :end_time, :student_id, :subject_id, :assigned_guardian_id, :inserted_at, :updated_at
+  ]}
   schema "schedule_entries" do
     field :day_of_week, :integer
     field :start_time, :time
