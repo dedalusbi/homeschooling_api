@@ -44,6 +44,15 @@ defmodule HomeschoolingWeb.ScheduleController do
           |> put_status(:created)
           |> json(%{data: aulas_criadas})
 
+        {:error, {:schedule_conflict, conflicts}} ->
+          conn
+          |> put_status(:conflict)
+          |> json(%{
+            error: "Conflito de horário detectado",
+            details: conflicts
+          })
+
+
         #Erro: aluno não encontrado ou sem permissão
         {:error, :not_found} ->
           conn

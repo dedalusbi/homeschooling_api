@@ -704,19 +704,50 @@ defmodule Homeschooling.Accounts do
 
       %Student{} =student ->
         days_of_week = Map.get(attrs, "days_of_week", [])
-        base_attrs = Map.drop(attrs, ["days_of_week"]) |> Map.put("student_id", student.id)
 
-        multi = Enum.reduce(days_of_week, Ecto.Multi.new(), fn day, multi ->
-          aula_attrs = Map.put(base_attrs, "day_of_week", day)
-          Ecto.Multi.insert(multi, "insert_day_#{day}", ScheduleEntry.changeset(%ScheduleEntry{}, aula_attrs))
-        end)
+        #LÓGICA DE VERIFICAÇÃO DE HORÁRIO CONFLITANTE
 
-        case Repo.transaction(multi) do
-          {:ok, result_map} ->
-            {:ok, Map.values(result_map)}
+        with {:ok, new_start_time} <- Time.from_iso8601(attrs["start_time"] <> ":00"),
+             {:ok, new_end_time} <- Time.from_iso8601(attrs["end_time"] <> ":00")
+        do
+          #Lógica de sobreposição (StartA < EndB) e (EndA > StartB)
+          conflicts_query =
+            from(se in ScheduleEntry,
+            join: s in Subject, on: s.id == se.subject_id,
+            where:
+              se.student_id == ^student.id and
+              se.day_of_week in ^days_of_week and
+              (se.start_time < ^new_end_time and
+               se.end_time > ^new_start_time),
+              select: %{
+                subject_name: s.name,
+                day_of_week: se.day_of_week,
+                start_time: se.start_time
+              }
+            )
 
-          {:error, _operation_name, error_reason, _changes} ->
-            {:error, error_reason}
+          conflicts = Repo.all(conflicts_query)
+          if conflicts == [] do
+            multi = Enum.reduce(days_of_week, Ecto.Multi.new(), fn day, multi ->
+              aula_attrs = Map.put(attrs, "day_of_week", day)
+                            |> Map.drop(["days_of_week"])
+                            |> Map.put("student_id", student.id)
+              Ecto.Multi.insert(multi, "insert_day_#{day}", ScheduleEntry.changeset(%ScheduleEntry{}, aula_attrs))
+            end)
+
+            case Repo.transaction(multi) do
+              {:ok, result_map} ->
+                {:ok, Map.values(result_map)}
+
+              {:error, _operation_name, error_reason, _changes} ->
+                {:error, error_reason}
+            end
+          else
+            {:error, {:schedule_conflict, conflicts}}
+          end
+        else
+          _error_parsing_time ->
+            {:error, :invalid_time_format}
         end
 
       nil ->
