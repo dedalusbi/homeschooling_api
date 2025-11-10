@@ -14,6 +14,8 @@ defmodule Homeschooling.Accounts.ScheduleEntry do
     field :day_of_week, :integer
     field :start_time, :time
     field :end_time, :time
+    field :start_date, :date
+    field :end_date, :date
 
     belongs_to :student, Student, foreign_key: :student_id
     belongs_to :subject, Subject, foreign_key: :subject_id
@@ -32,15 +34,30 @@ defmodule Homeschooling.Accounts.ScheduleEntry do
       :assigned_guardian_id,
       :day_of_week,
       :start_time,
-      :end_time
+      :end_time,
+      :start_date,
+      :end_date
     ])
     |> validate_required([
       :student_id,
       :subject_id,
       :day_of_week,
       :start_time,
-      :end_time
+      :end_time,
+      :start_date
     ])
+    |> validate_dates()
+  end
+
+
+  defp validate_dates(changeset) do
+    start_date = get_field(changeset, :start_date)
+    end_date = get_field(changeset, :end_date)
+    if (start_date && end_date && Date.compare(end_date, start_date) == :lt) do
+      add_error(changeset, :end_date, "A data de término deve ser após a data de início.")
+    else
+      changeset
+    end
   end
 
 end

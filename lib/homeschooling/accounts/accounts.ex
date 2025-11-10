@@ -669,12 +669,23 @@ defmodule Homeschooling.Accounts do
   #Retorna a lista de todas as entradas do cronograma (aulas recorrentes)
   #para um aluno específico, se o usuário tiver permissão
   def list_schedule_for_student(%User{}=user, student_id, filters \\ %{}) do
+
+    week_start = Map.get(filters, "week_start")
+    week_end = Map.get(filter, "week_end")
+
+    if is_nil(week_start) or is_nil(week_end) do
+      return {:error, :data_range_required}
+    end
+
     case get_student_by_id_for_user(user, student_id) do
 
       %Student{}=student ->
         query=
           from se in ScheduleEntry,
           where: se.student_id == ^student.id,
+          where:
+            (se.start_date <= ^week_end) and
+            (is_nil(se.end_date) or se.end_date >= ^week_start),
           join: s in Subject, on: s.id == se.subject_id,
           order_by: [se.day_of_week, se.start_time],
           select: %{
@@ -685,6 +696,8 @@ defmodule Homeschooling.Accounts do
             student_name: ^student.name,
             assigned_guardian_id: se.assigned_guardian_id,
             day_of_week: se.day_of_week,
+            start_date: se.start_date,
+            end_date: se.end_date,
             start_time: se.start_time,
             end_time: se.end_time
           }
