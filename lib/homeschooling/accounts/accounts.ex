@@ -685,8 +685,14 @@ defmodule Homeschooling.Accounts do
           from se in ScheduleEntry,
           where: se.student_id == ^student.id,
           where:
-            (se.start_date <= ^week_end) and
-            (is_nil(se.end_date) or se.end_date >= ^week_start),
+            #1. É um evento único dentro da semana
+            (se.specific_date >= ^week_start and se.specific_date <= ^week_end)
+            #OU
+            #2. É um recorrente ativo na semana
+            (
+            se.start_date <= ^week_end and
+            (is_nil(se.end_date) or se.end_date >= ^week_start)
+            ),
           join: s in Subject, on: s.id == se.subject_id,
           left_join: u in User, on: u.id == se.assigned_guardian_id,
           order_by: [se.day_of_week, se.start_time],
@@ -726,64 +732,81 @@ defmodule Homeschooling.Accounts do
   #uma para cada dia da semana fornecido.
   def create_schedule_entries(%User{}=user, student_id, attrs) do
 
+    is_recurring = Map.get(attrs, "is_recurring", true)
+
     case get_student_by_id_for_user(user, student_id) do
 
       %Student{} =student ->
-        days_of_week = Map.get(attrs, "days_of_week", [])
-        base_attrs = Map.drop(attrs, ["days_of_week"])
-          |> Map.put("student_id", student.id)
 
-        #Lógica para end_date
-        base_attrs =
-          if Map.get(base_attrs, "end_date") == "" do
-            Map.put(base_attrs, "end_date", nil)
-          else
-            base_attrs
+        #LÓGICA DE EVENTO ÚNICO
+        if is_recurring == false do
+          attrs
+          |> Map.put("student_id", student.id)
+          |> Map.drop(["days_of_week"])
+          |> ScheduleEntry.changeset(%ScheduleEntry{})
+          |> Repo.insert()
+          |> case do
+            {:ok, entry} -> {:ok, [entry]}
+            {:error, changeset} -> {:error, changeset}
           end
 
-        #LÓGICA DE VERIFICAÇÃO DE HORÁRIO CONFLITANTE
+        else
+          #LÓGICA DE EVENTO RECORRENTE
+          days_of_week = Map.get(attrs, "days_of_week", [])
+          base_attrs = Map.drop(attrs, ["days_of_week"])
+            |> Map.put("student_id", student.id)
 
-        with {:ok, new_start_time} <- Time.from_iso8601(attrs["start_time"] <> ":00"),
-             {:ok, new_end_time} <- Time.from_iso8601(attrs["end_time"] <> ":00")
-        do
-          #Lógica de sobreposição (StartA < EndB) e (EndA > StartB)
-          conflicts_query =
-            from(se in ScheduleEntry,
-            join: s in Subject, on: s.id == se.subject_id,
-            where:
-              se.student_id == ^student.id and
-              se.day_of_week in ^days_of_week and
-              (se.start_time < ^new_end_time and
-               se.end_time > ^new_start_time),
-              select: %{
-                subject_name: s.name,
-                day_of_week: se.day_of_week,
-                start_time: se.start_time
-              }
-            )
+          #Lógica para end_date
+          base_attrs =
+            if Map.get(base_attrs, "end_date") == "" do
+              Map.put(base_attrs, "end_date", nil)
+            else
+              base_attrs
+            end
 
-          conflicts = Repo.all(conflicts_query)
-          if conflicts == [] do
-            multi = Enum.reduce(days_of_week, Ecto.Multi.new(), fn day, multi ->
-              aula_attrs = Map.put(base_attrs, "day_of_week", day)
-              Ecto.Multi.insert(multi, "insert_day_#{day}", ScheduleEntry.changeset(%ScheduleEntry{}, aula_attrs))
-            end)
+          #LÓGICA DE VERIFICAÇÃO DE HORÁRIO CONFLITANTE
 
-            case Repo.transaction(multi) do
-              {:ok, result_map} ->
-                {:ok, Map.values(result_map)}
+          with {:ok, new_start_time} <- Time.from_iso8601(attrs["start_time"] <> ":00"),
+              {:ok, new_end_time} <- Time.from_iso8601(attrs["end_time"] <> ":00")
+          do
+            #Lógica de sobreposição (StartA < EndB) e (EndA > StartB)
+            conflicts_query =
+              from(se in ScheduleEntry,
+              join: s in Subject, on: s.id == se.subject_id,
+              where:
+                se.student_id == ^student.id and
+                se.day_of_week in ^days_of_week and
+                (se.start_time < ^new_end_time and
+                se.end_time > ^new_start_time),
+                select: %{
+                  subject_name: s.name,
+                  day_of_week: se.day_of_week,
+                  start_time: se.start_time
+                }
+              )
 
-              {:error, _operation_name, error_reason, _changes} ->
-                {:error, error_reason}
+            conflicts = Repo.all(conflicts_query)
+            if conflicts == [] do
+              multi = Enum.reduce(days_of_week, Ecto.Multi.new(), fn day, multi ->
+                aula_attrs = Map.put(base_attrs, "day_of_week", day)
+                Ecto.Multi.insert(multi, "insert_day_#{day}", ScheduleEntry.changeset(%ScheduleEntry{}, aula_attrs))
+              end)
+
+              case Repo.transaction(multi) do
+                {:ok, result_map} ->
+                  {:ok, Map.values(result_map)}
+
+                {:error, _operation_name, error_reason, _changes} ->
+                  {:error, error_reason}
+              end
+            else
+              {:error, {:schedule_conflict, conflicts}}
             end
           else
-            {:error, {:schedule_conflict, conflicts}}
+            _error_parsing_time ->
+              {:error, :invalid_time_format}
           end
-        else
-          _error_parsing_time ->
-            {:error, :invalid_time_format}
         end
-
       nil ->
         {:error, :not_found}
     end
@@ -847,8 +870,11 @@ defmodule Homeschooling.Accounts do
       join: st in Student, on: st.id == g.student_id,
       join: se in ScheduleEntry, on: se.student_id == st.id,
       where:
-        (se.start_date <= ^week_end) and
-        (is_nil(se.end_date) or se.end_date >= ^week_start),
+        (se.specific_date >= ^week_start and se.specific_date <= ^week_end)
+        (
+        se.start_date <= ^week_end and
+        (is_nil(se.end_date) or se.end_date >= ^week_start)
+        ),
       join: s in Subject, on: s.id == se.subject_id,
       left_join: u in User, on: u.id == se.assigned_guardian_id,
       order_by: [se.day_of_week, se.start_time],
