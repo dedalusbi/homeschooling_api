@@ -8,7 +8,8 @@ defmodule Homeschooling.Accounts.ScheduleEntry do
   @foreign_key_type Ecto.UUID
 
   @derive {Jason.Encoder, only: [
-    :id, :day_of_week, :start_time, :end_time, :student_id, :subject_id, :assigned_guardian_id, :inserted_at, :updated_at, :specific_date,
+    :id, :day_of_week, :start_time, :end_time, :start_date, :end_date, :student_id, :subject_id, :assigned_guardian_id,
+    :inserted_at, :updated_at, :specific_date, :excluded_dates
   ]}
   schema "schedule_entries" do
     field :day_of_week, :integer
@@ -17,6 +18,7 @@ defmodule Homeschooling.Accounts.ScheduleEntry do
     field :start_date, :date
     field :end_date, :date
     field :specific_date, :date
+    field :excluded_dates, {:array, :date}, default: []
 
     field :is_recurring, :boolean, virtual: true, default: true
 
@@ -42,6 +44,7 @@ defmodule Homeschooling.Accounts.ScheduleEntry do
       :start_date,
       :end_date,
       :specific_date,
+      :excluded_dates
 
     ])
     |> validate_required([
@@ -61,8 +64,8 @@ defmodule Homeschooling.Accounts.ScheduleEntry do
     if is_recurring do
       changeset
       |> validate_required([:day_of_week, :start_date])
-      |> validate_inclusion(:specific_date, fn :specific_date, val ->
-        if is_nil(val), do: [], else: [specific_date: "não deve estar preenchido para eventos recorrentes"]
+      |> validate_change(:specific_date, fn :specific_date, val ->
+        if val, do: [specific_date: "não deve estar preenchido para eventos recorrentes."]
       end)
     else
       changeset

@@ -687,9 +687,10 @@ defmodule Homeschooling.Accounts do
           where:
             #1. É um evento único dentro da semana
             (se.specific_date >= ^week_start and se.specific_date <= ^week_end)
-            #OU
+            or
             #2. É um recorrente ativo na semana
             (
+            not is_nil(se.day_of_week) and
             se.start_date <= ^week_end and
             (is_nil(se.end_date) or se.end_date >= ^week_start)
             ),
@@ -708,7 +709,10 @@ defmodule Homeschooling.Accounts do
             start_date: se.start_date,
             end_date: se.end_date,
             start_time: se.start_time,
-            end_time: se.end_time
+            end_time: se.end_time,
+            is_recurring: not is_nil(se.day_of_week),
+            specific_date: se.specific_date,
+            excluded_dates: se.excluded_dates
           }
 
           #Aplica o filtro "apenas minhas aulas" se "only_mine" for true
@@ -732,7 +736,12 @@ defmodule Homeschooling.Accounts do
   #uma para cada dia da semana fornecido.
   def create_schedule_entries(%User{}=user, student_id, attrs) do
 
-    is_recurring = Map.get(attrs, "is_recurring", true)
+    is_recurring = case Map.get(attrs, "is_recurring") do
+      true -> true
+      "true" -> true
+      _ -> false
+
+    end
 
     case get_student_by_id_for_user(user, student_id) do
 
@@ -740,21 +749,36 @@ defmodule Homeschooling.Accounts do
 
         #LÓGICA DE EVENTO ÚNICO
         if is_recurring == false do
-          attrs
-          |> Map.put("student_id", student.id)
-          |> Map.drop(["days_of_week"])
-          |> ScheduleEntry.changeset(%ScheduleEntry{})
-          |> Repo.insert()
-          |> case do
-            {:ok, entry} -> {:ok, [entry]}
-            {:error, changeset} -> {:error, changeset}
-          end
+          aula_attrs =
+            attrs
+            |> Map.put("student_id", student.id)
+            |> Map.put("is_recurring", false)
+            |> Map.put("start_date", nil)
+            |> Map.put("end_date", nil)
+            |> Map.put("day_of_week", nil)
+            |> Map.drop(["days_of_week"])
+
+
+          %ScheduleEntry{}
+            |> ScheduleEntry.changeset(aula_attrs)
+            |> Ecto.Changeset.force_change(:start_date, nil)
+            |> Ecto.Changeset.force_change(:end_date, nil)
+            |> Ecto.Changeset.force_change(:day_of_week, nil)
+            |> Repo.insert()
+            |> case do
+              {:ok, entry} -> {:ok, [entry]}
+              {:error, changeset} -> {:error, changeset}
+            end
 
         else
           #LÓGICA DE EVENTO RECORRENTE
           days_of_week = Map.get(attrs, "days_of_week", [])
-          base_attrs = Map.drop(attrs, ["days_of_week"])
+          base_attrs =
+            attrs
+            |> Map.drop(["days_of_week"])
             |> Map.put("student_id", student.id)
+            |> Map.put("is_recurring", true)
+            |> Map.put("specific_date", nil)
 
           #Lógica para end_date
           base_attrs =
@@ -870,8 +894,9 @@ defmodule Homeschooling.Accounts do
       join: st in Student, on: st.id == g.student_id,
       join: se in ScheduleEntry, on: se.student_id == st.id,
       where:
-        (se.specific_date >= ^week_start and se.specific_date <= ^week_end)
+        (se.specific_date >= ^week_start and se.specific_date <= ^week_end) or
         (
+        not is_nil(se.day_of_week) and
         se.start_date <= ^week_end and
         (is_nil(se.end_date) or se.end_date >= ^week_start)
         ),
@@ -888,7 +913,10 @@ defmodule Homeschooling.Accounts do
         responsible_avatar_id: u.avatar_id,
         day_of_week: se.day_of_week,
         start_time: se.start_time,
-        end_time: se.end_time
+        end_time: se.end_time,
+        is_recurring: not is_nil(se.day_of_week),
+        specific_date: se.specific_date,
+        excluded_dates: se.excluded_dates
       }
 
     query =
@@ -899,6 +927,47 @@ defmodule Homeschooling.Accounts do
       end
 
     {:ok, Repo.all(query)}
+  end
+
+
+  #Cria uma exceção para uma aula recorrente
+  #Adiciona a data da exceção à lista 'excluded_dates' da aula original
+  #Cria uma nova aula única nessa data com os novos dados
+  def create_schedule_exception(%User{} = user, original_entry_id, new_attrs) do
+    #1. Busca a aula original
+    case get_schedule_entry_for_user(user, original_entry_id) do
+      {:ok, original_entry} ->
+        exception_date = Date.from_iso8601!(new_attrs["exception_date"])
+
+        Ecto.Multi.new()
+        #Passo A: atualizar a original para ignorar esta data
+        |> Ecto.Multi.update(:update_original, fn _ ->
+          new_excluded_list = [exception_date | (original_entry.excluded_dates || [])]
+          Ecto.Changeset.change(original_entry, excluded_dates: new_excluded_list)
+        end)
+        #Passo B: Criar a nova aula única (clone modificado)
+        |> Ecto.Multi.insert(:insert_exception, fn _ ->
+          #Prepara os atributos para a nova aula única
+            exception_attrs = new_attrs
+              |> Map.put("student_id", original_entry.student_id)
+              |> Map.put("subject_id", original_entry.subject_id)
+              |> Map.put("assigned_guardian_id", new_attrs["assigned_guardian_id"] || original_entry.assigned_guardian_id)
+              |> Map.put("is_recurring", false)
+              |> Map.put("specific_date", exception_date)
+              |> Map.put("start_date", nil)
+              |> Map.put("end_date", nil)
+              |> Map.put("day_ok_week", nil)
+
+            ScheduleEntry.changeset(%ScheduleEntry{}, exception_attrs)
+          end)
+        |> Repo.transaction()
+        |> case do
+          {:ok, %{insert_exception: new_entry}} -> {:ok, new_entry}
+          {:error, _op, changeset, _} -> {:error, changeset}
+        end
+
+      {:error, :not_found} -> {:error, :not_found}
+    end
   end
 
 

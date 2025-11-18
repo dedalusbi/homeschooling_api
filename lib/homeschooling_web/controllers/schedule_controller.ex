@@ -83,7 +83,7 @@ defmodule HomeschoolingWeb.ScheduleController do
           |> json(%{error: "Aluno não encontrado."})
 
         {:error, %Ecto.Changeset{}=changeset} ->
-          conn |> put_status(:unprocessable_entity) |> json(%{errors: HomeschoolingWeb.UserController.format_errors(changeset)})
+          conn |> put_status(:unprocessable_entity) |> json(%{errors: format_errors(changeset)})
 
         #Outro erro
         {:error, reason} ->
@@ -110,7 +110,7 @@ defmodule HomeschoolingWeb.ScheduleController do
       {:error, :not_found} ->
         conn |> put_status(:not_found) |> json(%{error: "Entrada não encontrada."})
       {:error, %Ecto.Changeset{}=changeset} ->
-        conn |> put_status(:unprocessable_entity) |> json(%{errors: HomeschoolingWeb.UserController.format_errors(changeset)})
+        conn |> put_status(:unprocessable_entity) |> json(%{errors: format_errors(changeset)})
         #Outro erro
       {:error, reason} ->
         conn |> put_status(:internal_server_error) |> json(%{error: inspect(reason)})
@@ -127,6 +127,30 @@ defmodule HomeschoolingWeb.ScheduleController do
       {:error, reason} ->
         conn |> put_status(:internal_server_error) |> json(%{error: inspect(reason)})
     end
+  end
+
+
+  def create_exception(conn, %{"id" => id, "aula" => aula_params}) do
+    current_user = conn.assigns.current_user
+
+    #O frontend deve enviar "exception_date" dentro de "aula"
+    case Accounts.create_schedule_exception(current_user, id, aula_params) do
+      {:ok, entry} ->
+        conn |> put_status(:created) |> json(%{data: entry})
+      {:error, :not_found} ->
+        conn |> put_status(:not_found) |> json(%{error: "Aula original não encontrada"})
+      {:error, %Ecto.Changeset{} = changeset} ->
+        conn |> put_status(:unprocessable_entity) |> json(%{errors: HomeschoolingWeb.UserController.fomat_errors(changeset)})
+    end
+  end
+
+
+  defp format_errors(changeset) do
+        Ecto.Changeset.traverse_errors(changeset, fn {msg, opts} ->
+            Enum.reduce(opts, msg, fn {key, value}, acc ->
+                String.replace(acc, "%{#{key}}", to_string(value))
+            end)
+        end)
   end
 
 end
