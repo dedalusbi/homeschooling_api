@@ -706,6 +706,7 @@ defmodule Homeschooling.Accounts do
             student_name: ^student.name,
             assigned_guardian_id: se.assigned_guardian_id,
             day_of_week: se.day_of_week,
+            activities: se.activities,
             start_date: se.start_date,
             end_date: se.end_date,
             start_time: se.start_time,

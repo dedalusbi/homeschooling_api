@@ -9,7 +9,7 @@ defmodule Homeschooling.Accounts.ScheduleEntry do
 
   @derive {Jason.Encoder, only: [
     :id, :day_of_week, :start_time, :end_time, :start_date, :end_date, :student_id, :subject_id, :assigned_guardian_id,
-    :inserted_at, :updated_at, :specific_date, :excluded_dates
+    :inserted_at, :updated_at, :specific_date, :excluded_dates, :activities
   ]}
   schema "schedule_entries" do
     field :day_of_week, :integer
@@ -19,6 +19,7 @@ defmodule Homeschooling.Accounts.ScheduleEntry do
     field :end_date, :date
     field :specific_date, :date
     field :excluded_dates, {:array, :date}, default: []
+    field :activities, :string
 
     field :is_recurring, :boolean, virtual: true, default: true
 
@@ -44,7 +45,8 @@ defmodule Homeschooling.Accounts.ScheduleEntry do
       :start_date,
       :end_date,
       :specific_date,
-      :excluded_dates
+      :excluded_dates,
+      :activities
 
     ])
     |> validate_required([
