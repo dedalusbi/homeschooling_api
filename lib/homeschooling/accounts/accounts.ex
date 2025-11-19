@@ -970,5 +970,35 @@ defmodule Homeschooling.Accounts do
     end
   end
 
+  #Exclui apenas UMA ocorrência de uma aula recorrente.
+  #Adiciona a data especificada à lista de excluded_dates
+  def exclude_schedule_occurrence(%User{}=user, entry_id, ocurrence_date_str) do
+    #Busca a entrada e verifica a permissão
+    case get_schedule_entry_for_user(user, entry_id) do
+      {:ok, entry} ->
+        #Verifica se é recorrente
+        if entry.day_of_week != nil do
+          #Converte a string para Date
+          case Date.from_iso8601(ocurrence_date_str) do
+            {:ok, date_to_exclude} ->
+              #Adiciona a data à lista de exclusões (sem duplicados)
+              current_excluded = entry.excluded_dates || []
+              new_excluded = Enum.uniq([date_to_exclude | current_excluded])
+
+              entry
+              |> Ecto.Changeset.change(excluded_dates: new_excluded)
+              |> Repo.update()
+
+            {:error, _} ->
+              {:error, :invalid_date_format}
+          end
+        else
+          #Se não for recorrente, não faz sentido excluir ocorrência
+          {:error, :not_recurring}
+        end
+      {:error, :not_found} ->
+        {:error, :not_found}
+    end
+  end
 
 end

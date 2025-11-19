@@ -130,6 +130,22 @@ defmodule HomeschoolingWeb.ScheduleController do
   end
 
 
+  def delete_occurrence(conn, %{"id" => id, "date" => date_str}) do
+    current_user = conn.assigns.current_user
+    case Accounts.exclude_schedule_occurrence(current_user, id, date_str) do
+      {:ok, _entry} ->
+        send_resp(conn, :no_content, "")
+      {:error, :not_found} ->
+        conn |> put_status(:not_found) |> json(%{error: "Aula não encontrada"})
+      {:error, :invalid_date_format} ->
+        conn |> put_status(:bad_request) |> json(%{error: "Formato de data inválida"})
+      {:error, :not_recurring} ->
+        conn |> put_status(:bad_request) |> json(%{error: "Esta aula não é recorrente"})
+      {:error, reason} ->
+        conn |> put_status(:internal_server_error) |> json(%{error: inspect(reason)})
+    end
+  end
+
   def create_exception(conn, %{"id" => id, "aula" => aula_params}) do
     current_user = conn.assigns.current_user
 
