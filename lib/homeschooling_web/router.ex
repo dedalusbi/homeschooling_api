@@ -53,6 +53,7 @@ defmodule HomeschoolingWeb.Router do
     delete "/schedules/:id", ScheduleController, :delete
     post "/schedules/:id/exception", ScheduleController, :create_exception
     delete "/schedules/:id/occurrence", ScheduleController, :delete_occurrence
+    post "/schedules/:id/logs", DailyLogController, :create
 
     options "/students", StudentController, :create
     options "/students/:id", StudentController, :show
@@ -73,6 +74,7 @@ defmodule HomeschoolingWeb.Router do
     options "/schedules/all", ScheduleController, :index_all
     options "/schedules/:id/exception", ScheduleController, :create_exception
     options "/schedules/:id/occurrence", ScheduleController, :delete_occurrence
+    options "/schedules/:id/logs", DailyLogController, :create
   end
 
   # Enable Swoosh mailbox preview in development

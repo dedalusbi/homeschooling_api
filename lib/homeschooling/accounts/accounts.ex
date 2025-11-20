@@ -5,7 +5,7 @@ defmodule Homeschooling.Accounts do
   alias Homeschooling.Accounts.User
   alias Homeschooling.Accounts.PasswordResetToken
   alias Homeschooling.Accounts.EmailVerificationToken
-  alias Homeschooling.Accounts.{Student, Guardian, Subject, SubjectCompletion, ScheduleEntry}
+  alias Homeschooling.Accounts.{Student, Guardian, Subject, SubjectCompletion, ScheduleEntry, DailyLog}
   alias ExAws.S3
 
   @default_avatars [
@@ -695,6 +695,9 @@ defmodule Homeschooling.Accounts do
             (is_nil(se.end_date) or se.end_date >= ^week_start)
             ),
           join: s in Subject, on: s.id == se.subject_id,
+          left_join: log in DailyLog, on: log.schedule_entry_id == se.id
+                                            and log.log_date >= ^week_start
+                                            and log.log_date <= ^week_end,
           left_join: u in User, on: u.id == se.assigned_guardian_id,
           order_by: [se.day_of_week, se.start_time],
           select: %{
@@ -708,6 +711,9 @@ defmodule Homeschooling.Accounts do
             day_of_week: se.day_of_week,
             activities: se.activities,
             start_date: se.start_date,
+            status: log.status,
+            log_id: log.id,
+            log_notes: log.notes,
             end_date: se.end_date,
             start_time: se.start_time,
             end_time: se.end_time,
@@ -902,6 +908,9 @@ defmodule Homeschooling.Accounts do
         (is_nil(se.end_date) or se.end_date >= ^week_start)
         ),
       join: s in Subject, on: s.id == se.subject_id,
+      left_join: log in DailyLog, on: log.schedule_entry_id == se.id
+                                            and log.log_date >= ^week_start
+                                            and log.log_date <= ^week_end,
       left_join: u in User, on: u.id == se.assigned_guardian_id,
       order_by: [se.day_of_week, se.start_time],
       select: %{
@@ -915,6 +924,8 @@ defmodule Homeschooling.Accounts do
         day_of_week: se.day_of_week,
         start_time: se.start_time,
         end_time: se.end_time,
+        status: log.status,
+        log_id: log.id,
         is_recurring: not is_nil(se.day_of_week),
         specific_date: se.specific_date,
         excluded_dates: se.excluded_dates
@@ -1000,6 +1011,38 @@ defmodule Homeschooling.Accounts do
       {:error, :not_found} ->
         {:error, :not_found}
     end
+  end
+
+
+  #Cria ou atualiza um registro diário para uma aula
+  def create_or_update_daily_log(%User{}=user, schedule_entry_id, attrs) do
+    #Verifica se o usuário tem permissão sobre a aula
+    case get_schedule_entry_for_user(user, schedule_entry_id) do
+      {:ok, entry} ->
+        #Tenta encontrar um log existente para essa aula nessa data
+        log_date = Date.from_iso8601!(attrs["log_date"])
+        existing_log = Repo.get_by(DailyLog, schedule_entry_id: schedule_entry_id, log_date: log_date)
+
+        if existing_log do
+          #Atualizar log existente
+          existing_log
+          |> DailyLog.changeset(attrs)
+          |> Repo.update()
+        else
+          #Criar novo log
+          %DailyLog{}
+          |> DailyLog.changeset(Map.put(attrs, "schedule_entry_id", schedule_entry_id))
+          |> Repo.insert()
+        end
+
+      {:error, :not_found} ->
+        {:error, :not_found}
+    end
+  end
+
+  #Função auxiliar para buscar logs de um intervalo (para preencher o formulário)
+  def list_daily_logs_for_week(%User{}=user, week_start, week_end) do
+    # implementar depois...
   end
 
 end
