@@ -754,90 +754,53 @@ defmodule Homeschooling.Accounts do
 
       %Student{} =student ->
 
-        #LÓGICA DE EVENTO ÚNICO
-        if is_recurring == false do
-          aula_attrs =
-            attrs
-            |> Map.put("student_id", student.id)
-            |> Map.put("is_recurring", false)
-            |> Map.put("start_date", nil)
-            |> Map.put("end_date", nil)
-            |> Map.put("day_of_week", nil)
-            |> Map.drop(["days_of_week"])
+        #Prepara os dados para validação
+        #Precisamos saber as datas e horários para verificar conflitos
+        with {:ok, new_start_time} <- Time.from_iso8601(attrs["start_time"] <> ":00"),
+             {:ok, new_end_time} <- Time.from_iso8601(attrs["end_time"] <> ":00") do
 
+              conflict_scope =
+                if is_recurring do
+                  #Para recorrente: verificamos os dias da semana selecionados
+                  days_of_week_raw = Map.get(attrs, "days_of_week", [])
+                  days = case days_of_week_raw do
+                    list when is_list(list) ->
+                      Enum.map(list, fn
+                        s when is_binary(s) -> String.to_integer(s)
+                        i when is_integer(i) -> i
+                        _ -> nil
+                      end)
+                      |> Enum.reject(&is_nil/1)
+                    _ ->
+                      []
+                  end
 
-          %ScheduleEntry{}
-            |> ScheduleEntry.changeset(aula_attrs)
-            |> Ecto.Changeset.force_change(:start_date, nil)
-            |> Ecto.Changeset.force_change(:end_date, nil)
-            |> Ecto.Changeset.force_change(:day_of_week, nil)
-            |> Repo.insert()
-            |> case do
-              {:ok, entry} -> {:ok, [entry]}
-              {:error, changeset} -> {:error, changeset}
-            end
+                  if Enum.empty?(days) do
+                    {:error, :missing_days_of_week}
+                  else
+                    start_date = Date.from_iso8601!(attrs["start_date"])
+                    end_date = if attrs["end_date"] && attrs["end_date"] != "", do: Date.from_iso8601!(attrs["end_date"]), else: nil
+                    {:recurring, days, start_date, end_date}
+                  end
 
-        else
-          #LÓGICA DE EVENTO RECORRENTE
-          days_of_week = Map.get(attrs, "days_of_week", [])
-          base_attrs =
-            attrs
-            |> Map.drop(["days_of_week"])
-            |> Map.put("student_id", student.id)
-            |> Map.put("is_recurring", true)
-            |> Map.put("specific_date", nil)
+                else
+                  #Para única: verificamos a data específica
+                  date = Date.from_iso8601!(attrs["specific_date"])
+                  {:single, date}
+                end
 
-          #Lógica para end_date
-          base_attrs =
-            if Map.get(base_attrs, "end_date") == "" do
-              Map.put(base_attrs, "end_date", nil)
-            else
-              base_attrs
-            end
-
-          #LÓGICA DE VERIFICAÇÃO DE HORÁRIO CONFLITANTE
-
-          with {:ok, new_start_time} <- Time.from_iso8601(attrs["start_time"] <> ":00"),
-              {:ok, new_end_time} <- Time.from_iso8601(attrs["end_time"] <> ":00")
-          do
-            #Lógica de sobreposição (StartA < EndB) e (EndA > StartB)
-            conflicts_query =
-              from(se in ScheduleEntry,
-              join: s in Subject, on: s.id == se.subject_id,
-              where:
-                se.student_id == ^student.id and
-                se.day_of_week in ^days_of_week and
-                (se.start_time < ^new_end_time and
-                se.end_time > ^new_start_time),
-                select: %{
-                  subject_name: s.name,
-                  day_of_week: se.day_of_week,
-                  start_time: se.start_time
-                }
-              )
-
-            conflicts = Repo.all(conflicts_query)
-            if conflicts == [] do
-              multi = Enum.reduce(days_of_week, Ecto.Multi.new(), fn day, multi ->
-                aula_attrs = Map.put(base_attrs, "day_of_week", day)
-                Ecto.Multi.insert(multi, "insert_day_#{day}", ScheduleEntry.changeset(%ScheduleEntry{}, aula_attrs))
-              end)
-
-              case Repo.transaction(multi) do
-                {:ok, result_map} ->
-                  {:ok, Map.values(result_map)}
-
-                {:error, _operation_name, error_reason, _changes} ->
-                  {:error, error_reason}
+              #executa a verificação de conflito unificada
+              if has_conflict?(student_id, new_start_time, new_end_time, conflict_scope) do
+                {:error, {:schedule_conflict, []}}
+              else
+                perform_schedule_creation(student, attrs, is_recurring)
               end
-            else
-              {:error, {:schedule_conflict, conflicts}}
-            end
           else
-            _error_parsing_time ->
-              {:error, :invalid_time_format}
-          end
+
+            _ -> {:error, :invalid_time_format}
+
         end
+
       nil ->
         {:error, :not_found}
     end
@@ -1044,5 +1007,104 @@ defmodule Homeschooling.Accounts do
   def list_daily_logs_for_week(%User{}=user, week_start, week_end) do
     # implementar depois...
   end
+
+
+  #Nova função de validação de conflito
+  defp has_conflict?(student_id, start_time, end_time, scope) do
+    query = from se in ScheduleEntry,
+                where: se.student_id == ^student_id,
+                #SObreposição de horário (válida para qualquer tipo de aula)
+                where: se.start_time < ^end_time and se.end_time > ^start_time
+    query = case scope do
+      #Caso A: Estamos criando uma AULA ÚNICA numa data específica (target_date)
+      {:single, target_date} ->
+        day_of_week = Date.day_of_week(target_date)
+        db_day_of_week = if day_of_week == 7, do: 0, else: day_of_week
+
+        from se in query,
+        where:
+          #1. Conflito com outra aula única na mesma data
+          (se.specific_date == ^target_date)
+          or
+          #2. Conflito com aula RECORRENTE ativa nesse dia da semana
+          (
+            se.day_of_week == ^db_day_of_week and
+            se.start_date <= ^target_date and
+            (is_nil(se.end_date) or se.end_date >= ^target_date)
+          )
+      #Caso B: Estamos criando uma AULA RECORRENTE (dias, start, end)
+      {:recurring, days, new_start_date, new_end_date} ->
+        target_end_date = new_end_date || ~D[9999-12-31]
+        from se in query,
+        where:
+        #1. Conflito com AULA RECORRENTE que se sobreponha em datas e dias da semana
+        (
+          se.day_of_week in ^days and
+          se.start_date <= ^target_end_date and
+          (is_nil(se.end_date) or se.end_date >= ^new_start_date)
+        )
+        or
+        #2. Conflito com AULA ÚNICA que caia num dos dias da semana E dentro do período
+        (
+          se.specific_date >= ^new_start_date and
+          se.specific_date <= ^target_end_date and
+          fragment("EXTRACT(DOW FROM ?)", se.specific_date) in ^days
+        )
+    end
+
+    Repo.exists?(query)
+  end
+
+  #Função que executa a lógica de inserção
+  defp perform_schedule_creation(student, attrs, false) do
+    #Lógica de Aula ÚNICA
+    clean_attrs = attrs
+                    |> Map.put("student_id", student.id)
+                    |> Map.put("is_recurring", false)
+                    |> Map.put("start_date", nil)
+                    |> Map.put("end_date", nil)
+                    |> Map.put("days_of_week", nil)
+                    |> Map.drop(["days_of_week"])
+
+    %ScheduleEntry{}
+      |> ScheduleEntry.changeset(clean_attrs)
+      |> Ecto.Changeset.force_change(:start_date, nil)
+      |> Ecto.Changeset.force_change(:end_date, nil)
+      |> Ecto.Changeset.force_change(:day_of_week, nil)
+      |> Repo.insert()
+      |> case do
+        {:ok, entry} -> {:ok, [entry]}
+        {:error, changeset} -> {:error, changeset}
+      end
+  end
+
+
+  defp perform_schedule_creation(student, attrs, true) do
+    #Lógica de aula RECORRENTE
+    days_of_week = Map.get(attrs, "days_of_week", [])
+    base_attrs = attrs
+                |> Map.drop(["days_of_week"])
+                |> Map.put("student_id", student.id)
+                |> Map.put("is_recurring", true)
+                |> Map.put("specific_date", nil)
+    base_attrs =
+      if Map.get(base_attrs, "end_date") == "" do
+        Map.put(base_attrs, "end_date", nil)
+      else
+        base_attrs
+      end
+
+    multi = Enum.reduce(days_of_week, Ecto.Multi.new(), fn day, multi ->
+      aula_attrs = Map.put(base_attrs, "day_of_week", day)
+      Ecto.Multi.insert(multi, "insert_day_#{day}", ScheduleEntry.changeset(%ScheduleEntry{}, aula_attrs))
+    end)
+
+    case Repo.transaction(multi) do
+      {:ok, result_map} -> {:ok, Map.values(result_map)}
+      {:error, _op, reason, _changes} -> {:error, reason}
+    end
+  end
+
+
 
 end
