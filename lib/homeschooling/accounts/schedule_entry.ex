@@ -2,7 +2,7 @@ defmodule Homeschooling.Accounts.ScheduleEntry do
 
   use Ecto.Schema
   import Ecto.Changeset
-  alias Homeschooling.Accounts.{User, Student, Subject}
+  alias Homeschooling.Accounts.{User, Student, Subject, DailyLog}
 
   @primary_key {:id, Ecto.UUID, autogenerate: true}
   @foreign_key_type Ecto.UUID
@@ -26,6 +26,7 @@ defmodule Homeschooling.Accounts.ScheduleEntry do
     belongs_to :student, Student, foreign_key: :student_id
     belongs_to :subject, Subject, foreign_key: :subject_id
 
+    has_many :daily_logs, DailyLog
     belongs_to :assigned_guardian, User, foreign_key: :assigned_guardian_id
 
     timestamps()

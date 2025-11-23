@@ -1107,4 +1107,62 @@ defmodule Homeschooling.Accounts do
 
 
 
+  #percorre todas as aulas agendadas para uma data específica.
+  #Se a aula não tiver registro (daily_log), cria um com status :missed
+  def mark_missed_activities_for_date(date \\ Date.add(Date.utc_today(), -1)) do
+    #Por default, roda para 'ontem'
+    #
+    #Calcula o dia da semana
+    day_of_week_elixir = Date.day_of_week(date)
+    db_day_of_week = if day_of_week_elixir == 7, do: 0, else: day_of_week_elixir
+
+    #Busca todas as entradas de cronograma que deveriam acontecer nesta data
+    query =
+      from se in ScheduleEntry,
+      where:
+        #Caso 1: evento único na data
+        (se.specific_date == ^date)
+        or
+        #Caso 2: evento RECORRENTE ativo
+        (
+          se.day_of_week == ^db_day_of_week and
+          se.start_date <= ^date and
+          (is_nil(se.end_date) or se.end_date >= ^date)
+        ),
+        #Carrega os logs APENAS para esta data para verificarmos se já existe
+        preload: [daily_logs: ^from(l in DailyLog, where: l.log_date == ^date)]
+
+    entries = Repo.all(query)
+
+    #Filtra e prepara os dados para inserção
+    logs_to_insert =
+      entries
+      |> Enum.filter(fn entry ->
+        #Filtro A: não deve ter log existente para hoje
+        has_log? = Enum.any?(entry.daily_logs)
+        #Filtro B: A data não deve estar na lista de exclusões (exceções)
+        is_excluded? = entry.excluded_dates && date in entry.excluded_dates
+        not has_log? and not is_excluded?
+      end)
+      |> Enum.map(fn entry ->
+        #Prepara o mapa para inserção em massa
+        %{
+          schedule_entry_id: entry.id,
+          log_date: date,
+          status: :missed,
+          notes: "Fechamento automático do dia.",
+          inserted_at: NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second) #necessário para insert_all
+        }
+      end)
+
+      #inserção em massa
+      if length(logs_to_insert) > 0 do
+        {count, _} = Repo.insert_all(DailyLog, logs_to_insert)
+        {:ok, count}
+      else
+        {:ok, 0}
+      end
+  end
+
+
 end
