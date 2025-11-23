@@ -4,6 +4,7 @@ defmodule HomeschoolingWeb.SubjectController do
   alias Homeschooling.Accounts
   alias Homeschooling.Accounts.Student
   alias Homeschooling.Accounts.Subject
+  alias Homeschooling.Accounts.DailyLog
 
 
 
@@ -15,7 +16,15 @@ defmodule HomeschoolingWeb.SubjectController do
       %Student{} = student ->
         filters = Map.get(params, "filter", %{})
         subjects = Accounts.list_subjects_for_student(student, filters)
-        render(conn, :index, subjects: subjects)
+
+        #Calcula estatísticas para cada matéria
+        subjects_with_stats = Enum.map(subjects, fn subject ->
+          stats = Accounts.get_subject_stats(subject)
+          #Adiciona os campos virtuais
+          Map.merge(subject, stats)
+        end)
+
+        render(conn, :index, subjects: subjects_with_stats)
 
       nil ->
         conn
@@ -61,7 +70,17 @@ defmodule HomeschoolingWeb.SubjectController do
 
     case Accounts.get_subject_by_id_for_user(current_user, subject_id) do
       %Subject{}=subject ->
-        render(conn, :subject, subject: subject)
+        #Estatísticas
+        stats = Accounts.get_subject_stats(subject)
+
+        #histórico (logs concluídos)
+        history = Accounts.get_daily_log_history_for_subject(subject.id)
+
+        subject_with_data =
+          subject
+          |> Map.merge(stats)
+          |> Map.put(:history, history)
+        render(conn, :subject, subject: subject_with_data)
 
       nil ->
         conn

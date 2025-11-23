@@ -19,11 +19,10 @@ defmodule HomeschoolingWeb.SubjectJSON do
       status: subject.status,
       inserted_at: subject.inserted_at,
       completion_report: get_report_text(subject.completion),
-      #adicionar lógica de contagem de aulas
-      #por enquanto: placeholder
-      aulas_concluidas: Enum.random(5..15),
-      aulas_totais: 20,
-      progresso: Enum.random(30..90)
+      aulas_concluidas: Map.get(subject, :completed, 0),
+      aulas_totais: Map.get(subject, :total, 0),
+      progresso: Map.get(subject, :progress, 0),
+      history: Map.get(subject, :history)
     }
   end
 

@@ -85,6 +85,13 @@ defmodule HomeschoolingWeb.ScheduleController do
         {:error, %Ecto.Changeset{}=changeset} ->
           conn |> put_status(:unprocessable_entity) |> json(%{errors: format_errors(changeset)})
 
+
+        {:error, :subject_mismatch} ->
+          conn
+          |> put_status(:unprocessable_entity)
+          |> json(%{error: "A matéria selecionada não pertence ao aluno indicado"})
+
+
         #Outro erro
         {:error, reason} ->
           IO.inspect(reason, label: "Erro inesperado em create_schedule_entries")

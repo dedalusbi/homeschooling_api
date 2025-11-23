@@ -754,52 +754,61 @@ defmodule Homeschooling.Accounts do
 
       %Student{} =student ->
 
-        #Prepara os dados para validação
-        #Precisamos saber as datas e horários para verificar conflitos
-        with {:ok, new_start_time} <- Time.from_iso8601(attrs["start_time"] <> ":00"),
-             {:ok, new_end_time} <- Time.from_iso8601(attrs["end_time"] <> ":00") do
+        subject_id = attrs["subject_id"]
+        subject = Repo.get(Subject, subject_id)
 
-              conflict_scope =
-                if is_recurring do
-                  #Para recorrente: verificamos os dias da semana selecionados
-                  days_of_week_raw = Map.get(attrs, "days_of_week", [])
-                  days = case days_of_week_raw do
-                    list when is_list(list) ->
-                      Enum.map(list, fn
-                        s when is_binary(s) -> String.to_integer(s)
-                        i when is_integer(i) -> i
-                        _ -> nil
-                      end)
-                      |> Enum.reject(&is_nil/1)
-                    _ ->
-                      []
-                  end
+        if subject && subject.student_id == student_id do
+            #Prepara os dados para validação
+          #Precisamos saber as datas e horários para verificar conflitos
+          with {:ok, new_start_time} <- Time.from_iso8601(attrs["start_time"] <> ":00"),
+              {:ok, new_end_time} <- Time.from_iso8601(attrs["end_time"] <> ":00") do
 
-                  if Enum.empty?(days) do
-                    {:error, :missing_days_of_week}
+                conflict_scope =
+                  if is_recurring do
+                    #Para recorrente: verificamos os dias da semana selecionados
+                    days_of_week_raw = Map.get(attrs, "days_of_week", [])
+                    days = case days_of_week_raw do
+                      list when is_list(list) ->
+                        Enum.map(list, fn
+                          s when is_binary(s) -> String.to_integer(s)
+                          i when is_integer(i) -> i
+                          _ -> nil
+                        end)
+                        |> Enum.reject(&is_nil/1)
+                      _ ->
+                        []
+                    end
+
+                    if Enum.empty?(days) do
+                      {:error, :missing_days_of_week}
+                    else
+                      start_date = Date.from_iso8601!(attrs["start_date"])
+                      end_date = if attrs["end_date"] && attrs["end_date"] != "", do: Date.from_iso8601!(attrs["end_date"]), else: nil
+                      {:recurring, days, start_date, end_date}
+                    end
+
                   else
-                    start_date = Date.from_iso8601!(attrs["start_date"])
-                    end_date = if attrs["end_date"] && attrs["end_date"] != "", do: Date.from_iso8601!(attrs["end_date"]), else: nil
-                    {:recurring, days, start_date, end_date}
+                    #Para única: verificamos a data específica
+                    date = Date.from_iso8601!(attrs["specific_date"])
+                    {:single, date}
                   end
 
+                #executa a verificação de conflito unificada
+                if has_conflict?(student_id, new_start_time, new_end_time, conflict_scope) do
+                  {:error, {:schedule_conflict, []}}
                 else
-                  #Para única: verificamos a data específica
-                  date = Date.from_iso8601!(attrs["specific_date"])
-                  {:single, date}
+                  perform_schedule_creation(student, attrs, is_recurring)
                 end
+            else
 
-              #executa a verificação de conflito unificada
-              if has_conflict?(student_id, new_start_time, new_end_time, conflict_scope) do
-                {:error, {:schedule_conflict, []}}
-              else
-                perform_schedule_creation(student, attrs, is_recurring)
-              end
-          else
+              _ -> {:error, :invalid_time_format}
 
-            _ -> {:error, :invalid_time_format}
-
+          end
+        else
+          {:error, :subject_mismatch}
         end
+
+
 
       nil ->
         {:error, :not_found}
@@ -1164,9 +1173,102 @@ defmodule Homeschooling.Accounts do
       end
   end
 
+  #Calcula estatísticas de uma matéria: total de aulas planejadas (Até o fim do ano)
+  #e o total de aulas concluídas
+  def get_subject_stats(%Subject{}=subject) do
+    #Carregar todas as entradas de cronograma (ScheduleEntries) desta matéria
+    entries = Repo.all(from se in ScheduleEntry, where: se.subject_id == ^subject.id)
 
+    #Contar aulas concluídas (baseado nos logs reais)
+    completed_count = Repo.aggregate(
+      from(l in DailyLog,
+        join: se in ScheduleEntry, on: l.schedule_entry_id == se.id,
+        where: se.subject_id == ^subject.id and l.status == :completed
+      ),
+      :count,
+      :id
+    ) || 0
 
+    #Calcular Total Planejado (até o fim do ano atual)
+    end_of_year = Date.new!(Date.utc_today().year(), 12, 31)
+    total_planned = Enum.reduce(entries, 0, fn entry, acc ->
+      acc + count_occurrences(entry, end_of_year)
+    end)
 
+    #Se o total planejado for 0 (ex. matéria nova), evita divisão por zero no progresso
+    total_effective = max(total_planned, completed_count)
 
+    progress = if total_effective > 0 do
+      (completed_count / total_effective * 100) |> Float.round(1)
+    else
+      0.0
+    end
+
+    %{
+      completed: completed_count,
+      total: total_effective,
+      progress: progress
+    }
+
+  end
+
+  #Função auxiliar para contar ocorrências de UMA entrada
+  defp count_occurrences(%ScheduleEntry{is_recurring: false}, _limit_date) do
+    1 #aula única conta sempre como 1
+  end
+  defp count_occurrences(%ScheduleEntry{is_recurring: true} = entry, limit_date) do
+
+    if is_nil(entry.start_date) do
+      IO.warn("count_occurrences: Start date is missing")
+      0
+    else
+       #Data de início efetiva
+      start_date = entry.start_date
+
+      #Data de fim efetiva: o menor entre (end_date da aula, fim do ano, hoje?)
+      #nota: o cálculo de progresso geralmente considera "até hoje" ou "total do curso"
+      #aqui vamos fazer "até o fim do corrente ano"
+      actual_end_date =
+        if is_nil(entry.end_date), do: limit_date, else: entry.end_date
+
+      #Usa a menor data entre o fim definido e o limite( fim do ano)
+      final_cutoff =
+        if Date.compare(actual_end_date, limit_date) == :lt, do: actual_end_date, else: limit_date
+
+      #Se a aula começa depois do corte, são 0 aulas
+      if Date.compare(start_date, final_cutoff) == :gt do
+        0
+      else
+        #Conta quantas vezes o da da semana ocorre no intervalo.
+        target_day = entry.day_of_week
+        Date.range(start_date, final_cutoff)
+        |> Enum.count(fn date ->
+          #Convert Date.day_of_week (1..7) para 0..6 se necessário
+          elixir_day = Date.day_of_week(date)
+          day_0_6 = if elixir_day == 7, do: 0, else: elixir_day
+          is_day_match = day_0_6 == target_day
+          excluded_list = entry.excluded_dates || []
+          is_excluded = date in excluded_list
+          is_day_match and not is_excluded
+        end)
+      end
+    end
+
+  end
+
+  def get_daily_log_history_for_subject(subject_id) do
+    (from l in DailyLog,
+      join: se in ScheduleEntry, on: l.schedule_entry_id == se.id,
+      where: se.subject_id == ^subject_id and l.status == :completed,
+      order_by: [desc: l.log_date],
+      select: %{
+        id: l.id,
+        log_date: l.log_date,
+        notes: l.notes,
+        status: l.status
+      }
+    )
+    |> Repo.all()
+  end
 
 end
