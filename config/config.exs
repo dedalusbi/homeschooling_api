@@ -48,4 +48,19 @@ config :homeschooling, :subscription_limits, %{
   essential: 1,
   family: 3,
   educator: 999_999
+
 }
+
+config :ex_aws,
+  #access_key_id: System.get_env("AWS_ACCESS_KEY_ID"),
+  #secret_access_key: System.get_env("AWS_SECRET_ACESS_KEY")
+  access_key_id: System.get_env("AKIAYS2NSFDZRWMOQ2HZ"),
+  secret_access_key: System.get_env("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"),
+  region: "us-east-1"
+
+config :ex_aws, :s3,
+  scheme: "https://",
+  host: "s3.amazonaws.com",
+  region: "us-east-1"
+
+config :homeschooling, :s3_bucket, "educasa-uploads"

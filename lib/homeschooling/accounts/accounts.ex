@@ -5,7 +5,7 @@ defmodule Homeschooling.Accounts do
   alias Homeschooling.Accounts.User
   alias Homeschooling.Accounts.PasswordResetToken
   alias Homeschooling.Accounts.EmailVerificationToken
-  alias Homeschooling.Accounts.{Student, Guardian, Subject, SubjectCompletion, ScheduleEntry, DailyLog}
+  alias Homeschooling.Accounts.{Student, Guardian, Subject, SubjectCompletion, ScheduleEntry, DailyLog, LogAttachment}
   alias ExAws.S3
 
   @default_avatars [
@@ -1012,11 +1012,6 @@ defmodule Homeschooling.Accounts do
     end
   end
 
-  #Função auxiliar para buscar logs de um intervalo (para preencher o formulário)
-  def list_daily_logs_for_week(%User{}=user, week_start, week_end) do
-    # implementar depois...
-  end
-
 
   #Nova função de validação de conflito
   defp has_conflict?(student_id, start_time, end_time, scope) do
@@ -1270,5 +1265,7 @@ defmodule Homeschooling.Accounts do
     )
     |> Repo.all()
   end
+
+
 
 end

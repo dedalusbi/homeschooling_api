@@ -54,7 +54,10 @@ defmodule Homeschooling.MixProject do
       {:pbkdf2_elixir, "~> 2.0"},
       {:joken, "~> 2.6.2"},
       {:cors_plug, "~>3.0"},
-      {:finch, "~> 0.20.0"}
+      {:finch, "~> 0.20.0"},
+      {:ex_aws, "~> 2.1"},
+      {:ex_aws_s3, "~> 2.0"},
+      {:hackney, "~> 1.17"}
     ]
   end
 
