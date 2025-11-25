@@ -1267,5 +1267,41 @@ defmodule Homeschooling.Accounts do
   end
 
 
+  #Lista os logs de um usuário para uma data específica.
+  #GET /api/logs?date=YYY-MM-DD
+  def list_daily_logs_for_date(%User{}=user, date) do
+    query =
+      from l in DailyLog,
+      join: se in ScheduleEntry, on: l.schedule_entry_id == se.id,
+      join: s in Student, on: se.student_id == s.id,
+      join: g in Guardian, on: g.student_id == s.id,
+      where: g.user_id == ^user.id and l.log_date == ^date,
+      preload: [:log_attachments],
+      select: l
+    Repo.all(query)
+  end
+
+  #Gera uma URL pré-assinada para upload direto no S3
+  def generate_attachment_presigned_url(filename, file_type) do
+    bucket = Application.fetch_env!(:homeschooling, :s3_bucket)
+    #Cria um caminho único: uploads/logs/UUID-nome.jpg
+    key = "uploads/logs/#{Ecto.UUID.generate()}-#{filename}"
+
+    #GEra URL para PUT (upload) válida por 15 minutos
+    {:ok, url} =
+      S3.presigned_url(:put_object, bucket, key, [
+        expires_in: 900,
+        content_type: file_type
+      ])
+    public_url = "https://#{bucket}.s3.amazonaws.com/#{key}"
+    {:ok, %{upload_url: url, public_url: public_url, key: key}}
+  end
+
+  #Registra o anexo do banco de dados após o upload
+  def create_log_attachment(daily_log_id, attrs) do
+    %LogAttachment{}
+    |> LogAttachment.changeset(Map.put(attrs, "daily_log_id", daily_log_id))
+    |> Repo.insert()
+  end
 
 end
