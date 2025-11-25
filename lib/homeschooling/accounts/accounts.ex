@@ -1287,9 +1287,12 @@ defmodule Homeschooling.Accounts do
     #Cria um caminho único: uploads/logs/UUID-nome.jpg
     key = "uploads/logs/#{Ecto.UUID.generate()}-#{filename}"
 
+    #Gera a configuração
+    config = ExAws.Config.new(:s3)
+
     #GEra URL para PUT (upload) válida por 15 minutos
     {:ok, url} =
-      S3.presigned_url(:put_object, bucket, key, [
+      ExAws.S3.presigned_url(config, :put, bucket, key, [
         expires_in: 900,
         content_type: file_type
       ])
@@ -1302,6 +1305,11 @@ defmodule Homeschooling.Accounts do
     %LogAttachment{}
     |> LogAttachment.changeset(Map.put(attrs, "daily_log_id", daily_log_id))
     |> Repo.insert()
+  end
+
+  #retorna a lista de anexos para um log específico
+  def list_log_attachments(log_id) do
+    Repo.all(from a in LogAttachment, where: a.daily_log_id == ^log_id)
   end
 
 end

@@ -43,4 +43,9 @@ defmodule HomeschoolingWeb.DailyLogController do
     end
   end
 
+  def index_attachments(conn, %{"id" => log_id}) do
+    attachments = Accounts.list_log_attachments(log_id)
+    json(conn, %{data: attachments})
+  end
+
 end

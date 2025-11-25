@@ -42,6 +42,7 @@ defmodule HomeschoolingWeb.Router do
     get "/schedules/:id", ScheduleController, :show
     get "/logs", DailyLogController, :index
     get "/logs/upload_url", DailyLogController, :upload_url
+    get "/logs/:id/attachments", DailyLogController, :index_attachments
     post "/students", StudentController, :create
     post "/students/:student_id/subjects", SubjectController, :create
     post "/subjects/:id/complete", SubjectController, :complete
@@ -81,6 +82,10 @@ defmodule HomeschoolingWeb.Router do
     options "/schedules/:id/occurrence", ScheduleController, :delete_occurrence
     options "/schedules/:id/logs", DailyLogController, :create
     options "/system/close_day", SystemController, :close_day
+    options "/logs", DailyLogController, :index
+    options "/logs/upload_url", DailyLogController, :upload_url
+    options "/logs/:id/attachments", DailyLogController, :create_attachment
+    options "/logs/:id/attachments", DailyLogController, :index_attachments
   end
 
   # Enable Swoosh mailbox preview in development
