@@ -33,28 +33,32 @@ defmodule HomeschoolingWeb.Router do
     pipe_through [:api, :protected]
 
     get "/me", UserController, :me
-    post "/students", StudentController, :create
     get "/students", StudentController, :index
     get "/students/:id", StudentController, :show
-    put "/students/:id", StudentController, :update
-    delete "/students/:id", StudentController, :delete
     get "/students/:student_id/subjects", SubjectController, :index
-    post "/students/:student_id/subjects", SubjectController, :create
     get "/subjects/:id", SubjectController, :show
-    put "/subjects/:id", SubjectController, :update
-    post "/subjects/:id/complete", SubjectController, :complete
-    post "/subjects/:id/reactivate", SubjectController, :reactivate
-    delete "/subjects/:id", SubjectController, :delete
     get "/students/:student_id/schedules", ScheduleController, :index
     get "/schedules/all", ScheduleController, :index_all
-    post "/schedules", ScheduleController, :create
     get "/schedules/:id", ScheduleController, :show
-    put "/schedules/:id", ScheduleController, :update
-    delete "/schedules/:id", ScheduleController, :delete
+    get "/logs", DailyLogController, :index
+    get "/logs/upload_url", DailyLogController, :upload_url
+    post "/students", StudentController, :create
+    post "/students/:student_id/subjects", SubjectController, :create
+    post "/subjects/:id/complete", SubjectController, :complete
+    post "/subjects/:id/reactivate", SubjectController, :reactivate
+    post "/schedules", ScheduleController, :create
     post "/schedules/:id/exception", ScheduleController, :create_exception
-    delete "/schedules/:id/occurrence", ScheduleController, :delete_occurrence
     post "/schedules/:id/logs", DailyLogController, :create
     post "/system/close_day", SystemController, :close_day
+    post "/logs/:id/attachments", DailyLogController, :create_attachment
+    put "/students/:id", StudentController, :update
+    put "/subjects/:id", SubjectController, :update
+    put "/schedules/:id", ScheduleController, :update
+    delete "/students/:id", StudentController, :delete
+    delete "/subjects/:id", SubjectController, :delete
+    delete "/schedules/:id", ScheduleController, :delete
+    delete "/schedules/:id/occurrence", ScheduleController, :delete_occurrence
+
 
     options "/students", StudentController, :create
     options "/students/:id", StudentController, :show

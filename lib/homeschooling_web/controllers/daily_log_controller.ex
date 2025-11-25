@@ -17,4 +17,30 @@ defmodule HomeschoolingWeb.DailyLogController do
   end
 
 
+  #GET /api/logs?date=YYYY-MM-DD
+  def index(conn, %{"date" => date_str}) do
+    user = conn.assigns.current_user
+    date = Date.from_iso8601!(date_str)
+    logs = Accounts.list_daily_logs_for_date(user, date)
+    json(conn, %{data: logs})
+  end
+
+  #Helper para pegar URL de upload (Frontend chama este primeiro)
+  #GET /api/logs/upload_url?filename=...&type=...
+  def upload_url(conn, %{"filename" => filename, "type" => type}) do
+    {:ok, data} = Accounts.generate_attachment_presigned_url(filename, type)
+    json(conn, %{data: data})
+  end
+
+  #POST /api/logs/:id/attachments
+  #O frontend envia a URL pública do S3 aqui para salvar no banco
+  def create_attachment(conn, %{"id" => log_id, "attachment" => attachment_params}) do
+    case Accounts.create_log_attachment(log_id, attachment_params) do
+      {:ok, attachment} ->
+        conn |> put_status(:created) |> json(%{data: attachment})
+      {:error, changeset} ->
+        conn |> put_status(:unprocessable_entity) |> json(%{errors: changeset})
+    end
+  end
+
 end
