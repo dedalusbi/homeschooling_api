@@ -719,7 +719,8 @@ defmodule Homeschooling.Accounts do
             end_time: se.end_time,
             is_recurring: not is_nil(se.day_of_week),
             specific_date: se.specific_date,
-            excluded_dates: se.excluded_dates
+            excluded_dates: se.excluded_dates,
+            recurrence_group_id: se.recurrence_group_id
           }
 
           #Aplica o filtro "apenas minhas aulas" se "only_mine" for true
@@ -826,7 +827,30 @@ defmodule Homeschooling.Accounts do
 
     case Repo.one(query) do
       nil -> {:error, :not_found}
-      entry -> {:ok, Repo.preload(entry, [:student, :subject])}
+      entry ->
+
+        entry = Repo.preload(entry, [:student, :subject])
+
+        is_recurring_value = not is_nil(entry.day_of_week)
+        entry = %{entry | is_recurring: is_recurring_value}
+
+      # -- preencher active_days - buscar entries "irmãs" -- (criadas na mesma recorrência) --
+        entry_with_days = if entry.recurrence_group_id do
+          #Busca todos os dias da semana associados a este grupo
+          days = Repo.all(
+            from se in ScheduleEntry,
+            where: se.recurrence_group_id == ^entry.recurrence_group_id,
+            select: se.day_of_week
+          )
+          #Coloca no campo virtual
+          %{entry | active_days: days}
+        else
+          #Se não tem grupo, o dia ativo é o próprio dia da aula
+          days = if entry.day_of_week, do: [entry.day_of_week], else: []
+          %{entry | active_days: days}
+        end
+
+        {:ok, entry_with_days}
     end
   end
 
@@ -834,13 +858,28 @@ defmodule Homeschooling.Accounts do
   def update_schedule_entry_for_user(%User{}=user, entry_id, attrs) do
     case get_schedule_entry_for_user(user, entry_id) do
       {:ok, entry} ->
-        attrs = Map.put_new(attrs, "day_of_week", entry.day_of_week)
-        entry
-        |> ScheduleEntry.changeset(attrs)
-        |> Repo.update()
+        #Verifica se estamos a atualizar uma série recorrente
+        is_series_update = entry.is_recurring and Map.has_key?(attrs, "days_of_week")
 
-      {:error, :not_found} ->
-        {:error, :not_found}
+        if is_series_update do
+          #Atualização da série (recriar)
+          Repo.transaction(fn ->
+            #Remove todas as entradas do grupo antigo
+            Repo.delete_all(from se in ScheduleEntry, where: se.recurrence_group_id == ^entry.recurrence_group_id)
+            #Chama a função de criação para gerar as novas entradas (precisamos passar o student_id pois a função create espera)
+            create_attrs = Map.put(attrs, "student_id", entry.student_id)
+            #Reutilizamos a lógica de criação (que já gera novo group_id e lida com dias)
+            case create_schedule_entries(user, entry.student_id, create_attrs) do
+              {:ok, new_entries} -> List.first(new_entries)
+              {:error, reason} -> Repo.rollback(reason)
+            end
+          end)
+        else
+          #atualização simples
+          entry
+          |> ScheduleEntry.changeset(attrs)
+          |> Repo.update()
+        end
     end
   end
 
@@ -900,7 +939,8 @@ defmodule Homeschooling.Accounts do
         log_id: log.id,
         is_recurring: not is_nil(se.day_of_week),
         specific_date: se.specific_date,
-        excluded_dates: se.excluded_dates
+        excluded_dates: se.excluded_dates,
+        recurrence_group_id: se.recurrence_group_id
       }
 
     query =
@@ -1086,11 +1126,16 @@ defmodule Homeschooling.Accounts do
   defp perform_schedule_creation(student, attrs, true) do
     #Lógica de aula RECORRENTE
     days_of_week = Map.get(attrs, "days_of_week", [])
+
+    #Gerar um ID único para este grupo
+    group_id = Ecto.UUID.generate()
+
     base_attrs = attrs
                 |> Map.drop(["days_of_week"])
                 |> Map.put("student_id", student.id)
                 |> Map.put("is_recurring", true)
                 |> Map.put("specific_date", nil)
+                |> Map.put("recurrence_group_id", group_id)
     base_attrs =
       if Map.get(base_attrs, "end_date") == "" do
         Map.put(base_attrs, "end_date", nil)

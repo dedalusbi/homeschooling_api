@@ -9,7 +9,8 @@ defmodule Homeschooling.Accounts.ScheduleEntry do
 
   @derive {Jason.Encoder, only: [
     :id, :day_of_week, :start_time, :end_time, :start_date, :end_date, :student_id, :subject_id, :assigned_guardian_id,
-    :inserted_at, :updated_at, :specific_date, :excluded_dates, :activities
+    :inserted_at, :updated_at, :specific_date, :excluded_dates, :activities, :recurrence_group_id, :is_recurring,
+    :active_days #<-- campo virtual que vamos criar para o frontend saber os dias
   ]}
   schema "schedule_entries" do
     field :day_of_week, :integer
@@ -20,6 +21,10 @@ defmodule Homeschooling.Accounts.ScheduleEntry do
     field :specific_date, :date
     field :excluded_dates, {:array, :date}, default: []
     field :activities, :string
+    field :recurrence_group_id, Ecto.UUID
+
+    #Campo virtual para transportar a lista de dias [1,3] para o frontend
+    field :active_days, {:array, :integer}, virtual: true
 
     field :is_recurring, :boolean, virtual: true, default: true
 
@@ -47,7 +52,8 @@ defmodule Homeschooling.Accounts.ScheduleEntry do
       :end_date,
       :specific_date,
       :excluded_dates,
-      :activities
+      :activities,
+      :recurrence_group_id
 
     ])
     |> validate_required([
