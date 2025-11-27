@@ -1267,6 +1267,16 @@ defmodule Homeschooling.Accounts do
       :id
     ) || 0
 
+    #contar total de aulas realizadas (completed + missed)
+    total_logs_count = Repo.aggregate(
+      from(l in DailyLog,
+        join: se in ScheduleEntry, on: l.schedule_entry_id == se.id,
+        where: se.subject_id == ^subject.id
+      ),
+      :count,
+      :id
+    ) || 0
+
     #Calcular Total Planejado (até o fim do ano atual)
     end_of_year = Date.new!(Date.utc_today().year(), 12, 31)
     total_planned = Enum.reduce(entries, 0, fn entry, acc ->
@@ -1282,10 +1292,19 @@ defmodule Homeschooling.Accounts do
       0.0
     end
 
+    #participação (baseado apenas no que já aconteceu)
+    participation = if total_logs_count > 0 do
+      (completed_count / total_logs_count)*100 |> Float.round(0)
+    else
+      0
+    end
+
     %{
       completed: completed_count,
       total: total_effective,
-      progress: progress
+      progress: progress,
+      total_given: total_logs_count,
+      participation: participation
     }
 
   end

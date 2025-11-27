@@ -23,7 +23,9 @@ defmodule HomeschoolingWeb.SubjectJSON do
       aulas_totais: Map.get(subject, :total, 0),
       progresso: Map.get(subject, :progress, 0),
       history: Map.get(subject, :history),
-      teaching_materials: subject.teaching_materials
+      teaching_materials: subject.teaching_materials,
+      aulas_realizadas: Map.get(subject, :total_given, 0),
+      participacao: Map.get(subject, :participation, 0)
     }
   end
 
