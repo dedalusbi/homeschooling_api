@@ -833,8 +833,10 @@ defmodule Homeschooling.Accounts do
                   end
 
                 #executa a verificação de conflito unificada
-                if has_conflict?(student_id, new_start_time, new_end_time, conflict_scope) do
-                  {:error, {:schedule_conflict, []}}
+                conflicts = get_conflicting_lessons(student.id, new_start_time, new_end_time, conflict_scope)
+                if conflicts != [] do
+                  #Retorna a lista detalhada dos conflitos encontrados
+                  {:error, {:schedule_conflict, conflicts}}
                 else
                   perform_schedule_creation(student, attrs, is_recurring)
                 end
@@ -1136,6 +1138,63 @@ defmodule Homeschooling.Accounts do
 
     Repo.exists?(query)
   end
+
+  #retorna a lista de conflitos com detalhes
+  defp get_conflicting_lessons(student_id, start_time, end_time, scope) do
+    #query base: junta com subject para pegar o nome
+    query = from se in ScheduleEntry,
+              join: s in Subject, on: s.id == se.subject_id,
+              where: se.student_id == ^student_id,
+              #sobreposição de horário
+              where: se.start_time < ^end_time and se.end_time > ^start_time
+
+    query = case scope do
+      {:single, target_date} ->
+        #Lógica para conflito com data específica
+        day_of_week = Date.day_of_week(target_date)
+        db_day_of_week = if day_of_week == 7, do: 0, else: day_of_week
+
+        from [se, s] in query,
+        where:
+          (se.specific_date == ^target_date)
+          or
+          (
+            se.day_of_week == ^db_day_of_week and
+            se.start_date <= ^target_date and
+            (is_nil(se.end_date) or se.end_date >= ^target_date)
+          )
+
+      {:recurring, days, new_start_date, new_end_date} ->
+        #Lógica para conflito com série recorrente
+        from [se, s] in query,
+        where:
+          (
+            se.day_of_week in ^days and
+            se.start_date <= ^(new_end_date || ~D[9999-12-31]) and
+            (is_nil(se.end_date) or se.end_date >= ^new_start_date)
+          )
+          or
+          (
+            se.specific_date >= ^new_start_date and
+            (is_nil(^new_end_date) or se.specific_date <= ^new_end_date) and
+            fragment("EXTRACT(DOW FROM ?) IN (?)", se.specific_date, ^days)
+          )
+    end
+
+    query = from [se, s] in query,
+              select: %{
+                subject_name: s.name,
+                start_time: se.start_time,
+                end_time: se.end_time,
+                day_of_week: se.day_of_week,
+                specific_date: se.specific_date
+              }
+
+    Repo.all(query)
+
+  end
+
+
 
   #Função que executa a lógica de inserção
   defp perform_schedule_creation(student, attrs, false) do
