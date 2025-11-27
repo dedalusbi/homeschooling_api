@@ -21,7 +21,8 @@ defmodule HomeschoolingWeb.StudentJSON do
       individualities: student.individualities,
       avatar_id: student.avatar_id,
       inserted_at: student.inserted_at,
-      updated_at: student.updated_at
+      updated_at: student.updated_at,
+      guardians: render_guardians(student.guardians)
     }
   end
 
@@ -37,4 +38,20 @@ defmodule HomeschoolingWeb.StudentJSON do
     #Mapeia cda aluno na lista usando a função auxiliar render_student
     %{data: Enum.map(students, &render_student(&1))}
   end
+
+  defp render_guardians(%Ecto.Association.NotLoaded{}), do: []
+  defp render_guardians(guardians) when is_list(guardians) do
+    Enum.map(guardians, fn g ->
+      %{
+        id: g.id,
+        user_id: g.user_id,
+        name: g.user.full_name,
+        email: g.user.email,
+        avatar_id: g.user.avatar_id
+      }
+    end)
+  end
+  defp render_guardians(_), do: []
+
+
 end

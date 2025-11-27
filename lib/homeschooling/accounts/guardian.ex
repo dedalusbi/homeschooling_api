@@ -5,6 +5,9 @@ defmodule Homeschooling.Accounts.Guardian do
 
   @primary_key {:id, :id, autogenerate: true}
   @foreign_key_type Ecto.UUID
+
+  @derive {Jason.Encoder, only: [:id, :user_id, :student_id, :user]}
+
   schema "guardians" do
 
     belongs_to :user, Homeschooling.Accounts.User

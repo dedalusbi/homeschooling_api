@@ -467,7 +467,12 @@ defmodule Homeschooling.Accounts do
       where: s.id == ^student_id and g.user_id == ^user.id,
       select: s
 
-    Repo.one(query)
+    case Repo.one(query) do
+      nil -> nil
+      student ->
+        #preload: carrega a lista de guardians e, para cada um, carrega o usuário
+        Repo.preload(student, [guardians: :user])
+    end
   end
 
 

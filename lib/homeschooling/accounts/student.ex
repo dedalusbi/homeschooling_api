@@ -5,7 +5,7 @@ defmodule Homeschooling.Accounts.Student do
 
   @primary_key {:id, Ecto.UUID, autogenerate: true}
   @foreign_key_type Ecto.UUID
-  @derive {Jason.Encoder, only: [:id, :name, :birth_date, :grade_level, :individualities, :avatar_id, :inserted_at, :updated_at]}
+  @derive {Jason.Encoder, only: [:id, :name, :birth_date, :grade_level, :individualities, :avatar_id, :inserted_at, :updated_at, :guardians]}
   schema "students" do
     field :name, :string
     field :birth_date, :date
@@ -13,8 +13,7 @@ defmodule Homeschooling.Accounts.Student do
     field :individualities, {:array, :map}
     field :avatar_id, :string
 
-    #Relação M-to-M com Users através de Guardians
-    #many_to_many :users, Homeschooling.Accounts.User, join_through: "guardians"
+    has_many :guardians, Homeschooling.Accounts.Guardian
 
     timestamps(type: :utc_datetime)
   end
