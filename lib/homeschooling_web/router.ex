@@ -43,6 +43,7 @@ defmodule HomeschoolingWeb.Router do
     get "/logs", DailyLogController, :index
     get "/logs/upload_url", DailyLogController, :upload_url
     get "/logs/:id/attachments", DailyLogController, :index_attachments
+    get "/dashboard/stats", DashboardController, :stats
     post "/students", StudentController, :create
     post "/students/:student_id/subjects", SubjectController, :create
     post "/subjects/:id/complete", SubjectController, :complete
@@ -86,6 +87,7 @@ defmodule HomeschoolingWeb.Router do
     options "/logs/upload_url", DailyLogController, :upload_url
     options "/logs/:id/attachments", DailyLogController, :create_attachment
     options "/logs/:id/attachments", DailyLogController, :index_attachments
+    options "/dashboard/stats", DashboardController, :stats
   end
 
   # Enable Swoosh mailbox preview in development

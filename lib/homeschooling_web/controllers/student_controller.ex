@@ -52,10 +52,10 @@ defmodule HomeschoolingWeb.StudentController do
   def index(conn, _params) do
     current_user = conn.assigns.current_user
 
-    #Chama a função de negócio para buscar os alunos
-    students = Accounts.list_students_for_user(current_user)
 
-    render(conn, :index, students: students)
+    students_data = Accounts.list_students_for_user(current_user)
+
+    render(conn, :index, students_data: students_data)
 
   end
 

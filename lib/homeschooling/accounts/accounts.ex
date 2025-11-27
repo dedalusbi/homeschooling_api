@@ -409,15 +409,48 @@ defmodule Homeschooling.Accounts do
 
   #--- RETORNA A LISTA DE TODOS OS ALUNOS ASSOCIADOS A UM USUÁRIO ESPECÍFICO ---
   def list_students_for_user(%User{} = user) do
+
+    today = Date.utc_today()
+    day_of_week = Date.day_of_week(today)
+    #Ajuste para 0-6
+    db_day_of_week = if day_of_week == 7, do: 0, else: day_of_week
+
     #Esta query faz um JOIN entre students e guardians para encontrar todos os students onde o user_id na tabela
     #guardians corresponde ao ID do usuário
     query =
       from s in Student,
       join: g in Guardian, on: g.student_id == s.id,
       where: g.user_id == ^user.id,
-      select: s #Seleciona apenas os dados do aluno
+      #subquery para total de aulas hoje
+      #Conta schedule_entries que são válidas para hoje
+      left_join: total_today in subquery(
+        from se in ScheduleEntry,
+        where:
+          (se.specific_date == ^today) or
+          (
+            se.day_of_week == ^db_day_of_week and
+            se.start_date <= ^today and
+            (is_nil(se.end_date) or se.end_date >= ^today)
+          ),
+        group_by: se.student_id,
+        select: %{student_id: se.student_id, count: count(se.id)}
+      ), on: total_today.student_id == s.id,
+      #subquery para aulas concluídas hoje
+      left_join: completed_today in subquery(
+        from l in DailyLog,
+        where: l.log_date == ^today and l.status == :completed,
+        join: se in ScheduleEntry, on: l.schedule_entry_id == se.id,
+        group_by: se.student_id,
+        select: %{student_id: se.student_id, count: count(l.id)}
+      ), on: completed_today.student_id == s.id,
+      #Seleciona os dados + contagens
+      select: %{
+        student: s,
+        total_today: coalesce(total_today.count, 0),
+        completed_today: coalesce(completed_today.count, 0)
+      }
 
-    #Executa a query e retorna a lista de alunos
+    #Executa a query e retorna a lista de mapas
     Repo.all(query)
 
     #Retorna uma lista vazia se o usuário não tiver alunos
@@ -1356,5 +1389,44 @@ defmodule Homeschooling.Accounts do
   def list_log_attachments(log_id) do
     Repo.all(from a in LogAttachment, where: a.daily_log_id == ^log_id)
   end
+
+
+  def get_user_dashboard_stats(%User{}=user) do
+    #TOtal de alunos ativos
+    active_students_count = Repo.aggregate(
+      from(g in Guardian, where: g.user_id == ^user.id),
+      :count,
+      :id
+    )
+
+    #Progresso médio global
+    #precisamos iterar sobre todos os alunos, todas as matérias, calcular o progresso de cada uma e fazer a média
+    #busca todas as matérias de todos os alunos do usuário
+    subjects = Repo.all(
+      from s in Subject,
+      join: st in Student, on: s.student_id == st.id,
+      join: g in Guardian, on: g.student_id == st.id,
+      where: g.user_id == ^user.id
+    )
+
+    total_progress_sum =
+      subjects
+      |> Enum.map(&get_subject_stats/1)
+      |> Enum.map(fn stats -> stats.progress end)
+      |> Enum.sum()
+
+    average_progress =
+      if (length(subjects)) >0 do
+        (total_progress_sum / length(subjects)) |> Float.round(1)
+      else
+        0.0
+      end
+
+      %{
+        active_students: active_students_count,
+        average_progress: average_progress
+      }
+  end
+
 
 end
