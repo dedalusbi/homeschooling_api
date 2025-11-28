@@ -5,7 +5,7 @@ defmodule Homeschooling.Accounts do
   alias Homeschooling.Accounts.User
   alias Homeschooling.Accounts.PasswordResetToken
   alias Homeschooling.Accounts.EmailVerificationToken
-  alias Homeschooling.Accounts.{Student, Guardian, Subject, SubjectCompletion, ScheduleEntry, DailyLog, LogAttachment}
+  alias Homeschooling.Accounts.{Student, Guardian, Subject, SubjectCompletion, ScheduleEntry, DailyLog, LogAttachment, Assessment}
   alias ExAws.S3
 
   @default_avatars [
@@ -1511,5 +1511,19 @@ defmodule Homeschooling.Accounts do
       }
   end
 
+
+  #Cria uma avaliação para uma matéria, verificando permissão
+  def create_assessment(%User{}=user, subject_id, attrs) do
+    #verifica se o usuário tem permissão sobre a matéria
+    case get_subject_by_id_for_user(user, subject_id) do
+      %Subject{} = subject ->
+        #Cria a avaliação associada à matéria
+        %Assessment{}
+        |> Assessment.changeset(Map.put(attrs, "subject_id", subject.id))
+        |> Repo.insert()
+      nil ->
+        {:error, :not_found}
+    end
+  end
 
 end
