@@ -43,10 +43,26 @@ defmodule HomeschoolingWeb.SubjectJSON do
         title: a.title,
         assessment_date: a.assessment_date,
         grade: a.grade,
-        notes: a.notes
+        notes: a.notes,
+        attachments: render_attachments_list(a.attachments)
       }
     end)
   end
   defp render_assessments(_), do: []
+
+  defp render_attachments_list(%Ecto.Association.NotLoaded{}), do: []
+  defp render_attachments_list(attachments) when is_list(attachments) do
+    Enum.map(attachments, fn att ->
+      %{
+        id: att.id,
+        file_url: att.file_url,
+        file_type: att.file_type,
+        file_name: att.file_name
+      }
+    end)
+  end
+  defp render_attachments_list(_), do: []
+
+
 
 end

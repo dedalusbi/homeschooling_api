@@ -5,7 +5,7 @@ defmodule Homeschooling.Accounts do
   alias Homeschooling.Accounts.User
   alias Homeschooling.Accounts.PasswordResetToken
   alias Homeschooling.Accounts.EmailVerificationToken
-  alias Homeschooling.Accounts.{Student, Guardian, Subject, SubjectCompletion, ScheduleEntry, DailyLog, LogAttachment, Assessment}
+  alias Homeschooling.Accounts.{Student, Guardian, Subject, SubjectCompletion, ScheduleEntry, DailyLog, LogAttachment, Assessment, AssessmentAttachment}
   alias ExAws.S3
 
   @default_avatars [
@@ -600,7 +600,7 @@ defmodule Homeschooling.Accounts do
       nil ->
         nil
       %Subject{}=subject ->
-        Repo.preload(subject, [:completion, :assessments])
+        Repo.preload(subject, [:completion, assessments: :attachments ])
     end
   end
 
@@ -1521,9 +1521,75 @@ defmodule Homeschooling.Accounts do
         %Assessment{}
         |> Assessment.changeset(Map.put(attrs, "subject_id", subject.id))
         |> Repo.insert()
+        |> case do
+          {:ok, assessment} -> {:ok, Repo.preload(assessment, :attachments)}
+          error -> error
+        end
       nil ->
         {:error, :not_found}
     end
   end
 
+
+  #Gera uma URL para uploads de avaliações (pasta 'assessments')
+  def generate_assessment_presigned_url(filename, file_type) do
+    bucket = Application.fetch_env!(:homeschooling, :s3_bucket)
+    key = "uploads/assessments/#{Ecto.UUID.generate()}-#{filename}"
+
+    config = ExAws.Config.new(:s3)
+    {:ok, url} =
+      ExAws.S3.presigned_url(config, :put, bucket, key, [
+        expires_in: 900,
+        content_type: file_type
+      ])
+    public_url = "https://#{bucket}.s3.amazonaws.com/#{key}"
+    {:ok, %{upload_url: url, public_url: public_url, key: key}}
+  end
+
+  #Salva o anexo de avaliação no banco
+  def create_assessment_attachment(assessment_id, attrs) do
+    %AssessmentAttachment{}
+    |> AssessmentAttachment.changeset(Map.put(attrs, "assessment_id", assessment_id))
+    |> Repo.insert()
+  end
+
+  def get_assessment_for_user(%User{} = user, assessment_id) do
+    query =
+      from a in Assessment,
+      join: s in Subject, on: a.subject_id == s.id,
+      join: st in Student, on: s.student_id == st.id,
+      join: g in Guardian, on: g.student_id == st.id,
+      where: a.id == ^assessment_id and g.user_id == ^user.id,
+      select: a
+
+    Repo.one(query)
+  end
+
+
+  def update_assessment(%User{} = user, assessment_id, attrs) do
+    case get_assessment_for_user(user, assessment_id) do
+      %Assessment{} = assessment ->
+        assessment
+        |> Assessment.changeset(attrs)
+        |> Repo.update()
+        |> case do
+          {:ok, updated_assessment} -> {:ok, Repo.preload(updated_assessment, :attachments)}
+          error -> error
+        end
+
+      nil ->
+        {:error, :not_found}
+    end
+  end
+
+
+  def delete_assessment(%User{} = user, assessment_id) do
+    case get_assessment_for_user(user, assessment_id) do
+      %Assessment{} = assessment ->
+        Repo.delete(assessment)
+
+      nil ->
+        {:error, :not_found}
+    end
+  end
 end

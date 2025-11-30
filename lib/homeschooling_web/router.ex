@@ -44,6 +44,7 @@ defmodule HomeschoolingWeb.Router do
     get "/logs/upload_url", DailyLogController, :upload_url
     get "/logs/:id/attachments", DailyLogController, :index_attachments
     get "/dashboard/stats", DashboardController, :stats
+    get "/assessments/upload_url", AssessmentController, :upload_url
     post "/students", StudentController, :create
     post "/students/:student_id/subjects", SubjectController, :create
     post "/subjects/:id/complete", SubjectController, :complete
@@ -54,13 +55,17 @@ defmodule HomeschoolingWeb.Router do
     post "/system/close_day", SystemController, :close_day
     post "/logs/:id/attachments", DailyLogController, :create_attachment
     post "/subjects/:subject_id/assessments", AssessmentController, :create
+    post "/assessments/:id/attachments", AssessmentController, :create_attachment
     put "/students/:id", StudentController, :update
     put "/subjects/:id", SubjectController, :update
     put "/schedules/:id", ScheduleController, :update
+    put "/assessments/:id", AssessmentController, :update
     delete "/students/:id", StudentController, :delete
     delete "/subjects/:id", SubjectController, :delete
     delete "/schedules/:id", ScheduleController, :delete
     delete "/schedules/:id/occurrence", ScheduleController, :delete_occurrence
+    delete "/assessments/:id", AssessmentController, :delete
+
 
 
     options "/students", StudentController, :create
@@ -90,6 +95,10 @@ defmodule HomeschoolingWeb.Router do
     options "/logs/:id/attachments", DailyLogController, :index_attachments
     options "/dashboard/stats", DashboardController, :stats
     options "/subjects/:subject_id/assessments", AssessmentController, :create
+    options "/assessments/upload_url", AssessmentController, :upload_url
+    options "/assessments/:id/attachments", AssessmentController, :create_attachment
+    options "/assessments/:id", AssessmentController, :update
+    options "/assessments/:id", AssessmentController, :delete
   end
 
   # Enable Swoosh mailbox preview in development
