@@ -5,7 +5,7 @@ defmodule Homeschooling.Accounts.Assessment do
   @primary_key {:id, Ecto.UUID, autogenerate: true}
   @foreign_key_type Ecto.UUID
 
-  @derive {Jason.Encoder, only: [:id, :subject_id, :title, :assessment_date, :grade, :notes, :inserted_at]}
+  @derive {Jason.Encoder, only: [:id, :subject_id, :title, :assessment_date, :grade, :notes, :inserted_at, :attachments]}
 
   schema "assessments" do
     field :title, :string
@@ -14,6 +14,8 @@ defmodule Homeschooling.Accounts.Assessment do
     field :notes, :string
 
     belongs_to :subject, Homeschooling.Accounts.Subject
+
+    has_many :attachments, Homeschooling.Accounts.AssessmentAttachment
 
     timestamps()
   end

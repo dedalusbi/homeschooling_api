@@ -25,7 +25,8 @@ defmodule HomeschoolingWeb.SubjectJSON do
       history: Map.get(subject, :history),
       teaching_materials: subject.teaching_materials,
       aulas_realizadas: Map.get(subject, :total_given, 0),
-      participacao: Map.get(subject, :participation, 0)
+      participacao: Map.get(subject, :participation, 0),
+      assessments: render_assessments(subject.assessments)
     }
   end
 
@@ -33,5 +34,19 @@ defmodule HomeschoolingWeb.SubjectJSON do
   defp get_report_text(nil), do: nil
   defp get_report_text(%Ecto.Association.NotLoaded{}), do: nil
   defp get_report_text(%SubjectCompletion{}=completion), do: completion.final_report
+
+
+  defp render_assessments(assessments) when is_list(assessments) do
+    Enum.map(assessments, fn a ->
+      %{
+        id: a.id,
+        title: a.title,
+        assessment_date: a.assessment_date,
+        grade: a.grade,
+        notes: a.notes
+      }
+    end)
+  end
+  defp render_assessments(_), do: []
 
 end

@@ -600,7 +600,7 @@ defmodule Homeschooling.Accounts do
       nil ->
         nil
       %Subject{}=subject ->
-        Repo.preload(subject, :completion)
+        Repo.preload(subject, [:completion, :assessments])
     end
   end
 
