@@ -57,7 +57,8 @@ defmodule Homeschooling.MixProject do
       {:finch, "~> 0.20.0"},
       {:ex_aws, "~> 2.1"},
       {:ex_aws_s3, "~> 2.0"},
-      {:hackney, "~> 1.17"}
+      {:hackney, "~> 1.17"},
+      {:stripity_stripe, "~> 3.2"}
     ]
   end
 

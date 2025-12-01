@@ -64,3 +64,7 @@ config :ex_aws, :s3,
   region: "us-east-1"
 
 config :homeschooling, :s3_bucket, "educasa-uploads"
+
+config :stripity_stripe,
+  api_key: "pk_test_51SZVjHBz8DVrUYEZkYpwMB32jQTrP9soktHW1xbkmpQ48yozk8PEf7bB3QFRrDIXM0LsjvHGxxKjiglvr7VdVpRC00F7a2TGm0",
+  signing_secret: "sk_test_51SZVjHBz8DVrUYEZeOpRJRZdjyX8crLyfxFJPOW4OisKZOw5A6ruQigifvnpZuB0RqYNhG8Fbkk0mdqgkAvzZnF200KdUcwB93"
