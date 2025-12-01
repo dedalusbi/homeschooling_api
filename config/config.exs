@@ -65,6 +65,12 @@ config :ex_aws, :s3,
 
 config :homeschooling, :s3_bucket, "educasa-uploads"
 
+config :mint,
+  transport_options: [
+    {:debug, {:output, :standard_io}},
+    {:log_level, :debug}
+  ]
+
 config :stripity_stripe,
-  api_key: "pk_test_51SZVjHBz8DVrUYEZkYpwMB32jQTrP9soktHW1xbkmpQ48yozk8PEf7bB3QFRrDIXM0LsjvHGxxKjiglvr7VdVpRC00F7a2TGm0",
-  signing_secret: "sk_test_51SZVjHBz8DVrUYEZeOpRJRZdjyX8crLyfxFJPOW4OisKZOw5A6ruQigifvnpZuB0RqYNhG8Fbkk0mdqgkAvzZnF200KdUcwB93"
+  api_key: "sk_test_51SZZbLJQV5vJKLkqZZZd2iUdmPm8IFCbQ6dGNBBSgMUnFYfEb6hAtjey2OT6VDsst1wGJkz4HE7ddQpFs7OtTRIr002ouLIb2r",
+  signing_secret: "pk_test_51SZZbLJQV5vJKLkqcR5d96MXfHbNF10SxByx1WQcZfbVIOwX0h9CvEONhm7DNIo01K0jJSwlllyhGvCEhoy4GgNb00PfmYIXJK"

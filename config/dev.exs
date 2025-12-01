@@ -75,3 +75,13 @@ config :homeschooling, Homeschooling.Mailer, adapter: Swoosh.Adapters.Local
 #Configuração para pré-visualizar emails em /dev/mailbox
 config :swoosh, :api_client, false
 config :swoosh, :mailbox_preview, mode: :alias
+
+config :mint,
+  transport_options: [
+    {:debug, {:output, :standard_io}},
+    {:log_level, :debug}
+  ]
+
+config :stripity_stripe,
+  api_key: "sk_test_51SZZbLJQV5vJKLkqZZZd2iUdmPm8IFCbQ6dGNBBSgMUnFYfEb6hAtjey2OT6VDsst1wGJkz4HE7ddQpFs7OtTRIr002ouLIb2r",
+  signing_secret: "pk_test_51SZZbLJQV5vJKLkqcR5d96MXfHbNF10SxByx1WQcZfbVIOwX0h9CvEONhm7DNIo01K0jJSwlllyhGvCEhoy4GgNb00PfmYIXJK"

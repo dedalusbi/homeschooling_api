@@ -1,18 +1,19 @@
 defmodule Homeschooling.Subscriptions do
-  alias Stripe.Session, as: StripeSession
+  alias Stripe.Checkout.Session, as: StripeSession
   alias Homeschooling.Accounts.User
 
   #Mapeamento de planos internos para IDs do Stripe
   #Em produção, pegar de config/runtime.exs
   @plans %{
-    "family" => "prod_TWaLLL8F0sKaNo",
-    "educator" => "prod_TWaMrixrEF2jOz"
+    "family" => "price_1SZZohJQV5vJKLkqF87Deq2P",
+    "educator" => "price_1SZZp3JQV5vJKLkqZUahRNN1"
   }
 
   #Cria uma sessão de checkout no Stripe para que o usuário faça o upgrade.
   #Retorna a URL para onde o frontend deve redirecionar o usuário.
   def create_checkout_session(%User{}=user, plan_key) do
     price_id = Map.get(@plans, plan_key)
+    IO.inspect(price_id, label: "Price ID enviado")
 
     if is_nil(price_id) do
       {:error, :invalid_plan}
