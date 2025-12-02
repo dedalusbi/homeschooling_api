@@ -59,6 +59,7 @@ defmodule HomeschoolingWeb.Router do
     post "/subjects/:subject_id/assessments", AssessmentController, :create
     post "/assessments/:id/attachments", AssessmentController, :create_attachment
     post "/subscriptions/checkout", SubscriptionController, :create_checkout_session
+    post "/subscriptions/change", SubscriptionController, :change_plan
     put "/students/:id", StudentController, :update
     put "/subjects/:id", SubjectController, :update
     put "/schedules/:id", ScheduleController, :update
@@ -70,7 +71,7 @@ defmodule HomeschoolingWeb.Router do
     delete "/assessments/:id", AssessmentController, :delete
 
 
-
+    options "/me", UserController, :me
     options "/students", StudentController, :create
     options "/students/:id", StudentController, :show
     options "/students/:id", StudentController, :update
@@ -103,6 +104,8 @@ defmodule HomeschoolingWeb.Router do
     options "/assessments/:id", AssessmentController, :update
     options "/assessments/:id", AssessmentController, :delete
     options "/subscriptions/checkout", SubscriptionController, :create_checkout_session
+    options "/subscriptions/change", SubscriptionController, :change_plan
+
   end
 
   # Enable Swoosh mailbox preview in development

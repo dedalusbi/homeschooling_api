@@ -43,6 +43,26 @@ defmodule Homeschooling.Subscriptions do
       end
 
     end
-
   end
+
+
+  def change_subscription(%User{}=user, new_plan_key) do
+    new_price_id = Map.get(@plans, new_plan_key)
+
+    if is_nil(user.stripe_subscription_id) do
+      {:error, :no_active_subscription}
+    else
+      {:ok, sub} = Stripe.Subscription.retrieve(user.stripe_subscription_id)
+      item_id = List.first(sub.items.data).id
+
+      #Atualiza a assinatura
+      #O stipe calcula a pro-rata automaticamente para upgrades.
+      #para downgrades, ele dá crédito
+      params = %{
+        items: [%{id: item_id, price: new_price_id}]
+      }
+      Stripe.Subscription.update(user.stripe_subscription_id, params)
+    end
+  end
+
 end

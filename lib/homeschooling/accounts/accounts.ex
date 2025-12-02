@@ -1608,6 +1608,25 @@ defmodule Homeschooling.Accounts do
     end
   end
 
+  #Busca um usuário pelo seu ID de cliente no Stripe
+  def get_user_by_stripe_id(stripe_customer_id) do
+    Repo.get_by(User, stripe_customer_id: stripe_customer_id)
+  end
 
-
+  #Atualiza as informações de assinatura do usuário
+  def update_user_stripe_info(user_id, attrs) do
+    case Repo.get(User, user_id) do
+      %User{} = user ->
+        user
+        |> Ecto.Changeset.cast(attrs, [
+            :stripe_subscription_id,
+            :current_period_end,
+            :cancel_at_period_end,
+            :subscription_tier
+          ])
+        |> Repo.update()
+      nil ->
+        {:error, :user_not_found}
+    end
+  end
 end

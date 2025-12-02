@@ -5,7 +5,7 @@ defmodule Homeschooling.Accounts.User do
 
   @primary_key {:id, Ecto.UUID, autogenerate: true}
   @foreign_key_type Ecto.UUID
-  @derive {Jason.Encoder, only: [:id, :email, :full_name, :avatar_id, :subscription_tier, :ai_requests_count]}
+  @derive {Jason.Encoder, only: [:id, :email, :full_name, :avatar_id, :subscription_tier, :ai_requests_count, :stripe_subscription_id, :current_period_end, :cancel_at_period_end]}
   @schema_prefix "public"
   schema "users" do
     field :email, :string
@@ -17,7 +17,9 @@ defmodule Homeschooling.Accounts.User do
     field :ai_requests_count, :integer
     field :payment_gateway_customer_id, :string
     field :verified_at, :utc_datetime
-
+    field :stripe_subscription_id, :string
+    field :current_period_end, :utc_datetime
+    field :cancel_at_period_end, :boolean, default: false
 
 
     timestamps()

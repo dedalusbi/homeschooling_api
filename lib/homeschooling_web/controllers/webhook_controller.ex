@@ -16,6 +16,12 @@ defmodule HomeschoolingWeb.WebhookController do
         #Pagamento feito com sucesso
         process_successful_checkout(session)
         send_resp(conn, 200, "OK")
+
+      {:ok, %Stripe.Event{type: "customer.subscription.updated", data: %{object: subscription}}} ->
+        #Pagamento feito com sucesso
+        process_subscription_update(subscription)
+        send_resp(conn, 200, "OK")
+
       {:ok, _event} ->
         #Outros eventos
         send_resp(conn, 200, "Ignored")
@@ -29,13 +35,37 @@ defmodule HomeschoolingWeb.WebhookController do
     IO.inspect(session.metadata, label: ">>> WEBHOOK METADATA")
     #Extrai os metadados que enviamos na criação da sessão
     user_id = session.metadata["user_id"]
-    plan_key = session.metadata["plan_key"]
-    if user_id && plan_key do
-      IO.puts("Atualizando usuário #{user_id} para o plano #{plan_key}")
-      result = Accounts.upgrade_subscription(user_id, plan_key)
-      IO.inspect(result, label: ">> RESULTADO DO UPGRADE")
-    else
-      IO.puts(">>> ERRO: Metadata incompleto. USERId: #{inspect(user_id)}, Plan: #{inspect(plan_key)}")
+    sub_id = session.subscription
+    if user_id  do
+      Accounts.update_user_stripe_info(user_id, %{stripe_subscription_id: sub_id})
+    end
+  end
+
+  #Atualizar assinatura
+  defp process_subscription_update(subscription) do
+    #Busca o usuário pelo stripe_subscription_id
+    #OU usa o metadata se o Stripe o preservar
+    customer_id = subscription.customer
+    user = Accounts.get_user_by_stripe_id(customer_id)
+    if user do
+      plan_key = get_plan_key_from_price(subscription.items.data)
+      attrs = %{
+        subscription_tier: plan_key,
+        current_period_end: DateTime.from_unix!(subscription.current_period_end),
+        cancel_at_period_end: subscription.cancel_at_period_end
+      }
+
+      Accounts.update_user_stripe_info(user.id, attrs)
+    end
+  end
+
+  #Helper para descobrir qual o plano baseado no Price ID que veio do stripe
+  defp get_plan_key_from_price([item | _]) do
+    price_id = item.price.id
+    case price_id do
+      "price_1SZZohJQV5vJKLkqF87Deq2P" -> :family
+      "price_1SZZp3JQV5vJKLkqZUahRNN1" -> :educator
+      _ -> :essential
     end
   end
 end
