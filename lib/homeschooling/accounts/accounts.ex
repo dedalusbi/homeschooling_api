@@ -1592,4 +1592,22 @@ defmodule Homeschooling.Accounts do
         {:error, :not_found}
     end
   end
+
+  #Atualiza o plano de assinatura do usuário
+  def upgrade_subscription(user_id, plan_key) do
+    #Mapeia a string do plano ("family", "educator") para o atom do Ecto
+    tier = String.to_existing_atom(plan_key)
+
+    case Repo.get(User, user_id) do
+      %User{} = user ->
+        user
+        |> Ecto.Changeset.change(%{subscription_tier: tier})
+        |> Repo.update()
+      nil ->
+        {:error, :user_not_found}
+    end
+  end
+
+
+
 end

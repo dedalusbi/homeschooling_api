@@ -84,4 +84,4 @@ config :mint,
 
 config :stripity_stripe,
   api_key: "sk_test_51SZZbLJQV5vJKLkqZZZd2iUdmPm8IFCbQ6dGNBBSgMUnFYfEb6hAtjey2OT6VDsst1wGJkz4HE7ddQpFs7OtTRIr002ouLIb2r",
-  signing_secret: "pk_test_51SZZbLJQV5vJKLkqcR5d96MXfHbNF10SxByx1WQcZfbVIOwX0h9CvEONhm7DNIo01K0jJSwlllyhGvCEhoy4GgNb00PfmYIXJK"
+  signing_secret: " whsec_9bed91c997649e891dfb6d2431b78fcd6656e0cf676da46a3022d24334439da0"

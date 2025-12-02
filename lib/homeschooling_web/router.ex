@@ -20,6 +20,7 @@ defmodule HomeschoolingWeb.Router do
     post "/users/reset_password", UserController, :reset_password
     post "/users/verify", VerificationController, :verify
     post "/users/resend_verification", VerificationController, :resend
+    post "/subscription/webhook", WebhookController, :handle
 
     options "/users/register", UserController, :register
     options "/users/login", UserController, :login
@@ -27,6 +28,7 @@ defmodule HomeschoolingWeb.Router do
     options "/users/reset_password", UserController, :reset_password
     options "/users/verify", VerificationController, :verify
     options "/users/resend_verification", VerificationController, :resend
+    options "/subscription/webhook", WebhookController, :handle
   end
 
   scope "/api", HomeschoolingWeb do
