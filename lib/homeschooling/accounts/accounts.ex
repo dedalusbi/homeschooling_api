@@ -1610,7 +1610,7 @@ defmodule Homeschooling.Accounts do
 
   #Busca um usuário pelo seu ID de cliente no Stripe
   def get_user_by_stripe_id(stripe_customer_id) do
-    Repo.get_by(User, stripe_customer_id: stripe_customer_id)
+    Repo.get_by(User, payment_gateway_customer_id: stripe_customer_id)
   end
 
   #Atualiza as informações de assinatura do usuário
@@ -1620,6 +1620,7 @@ defmodule Homeschooling.Accounts do
         user
         |> Ecto.Changeset.cast(attrs, [
             :stripe_subscription_id,
+            :payment_gateway_customer_id,
             :current_period_end,
             :cancel_at_period_end,
             :subscription_tier
