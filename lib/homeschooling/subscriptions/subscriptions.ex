@@ -47,22 +47,52 @@ defmodule Homeschooling.Subscriptions do
 
 
   def change_subscription(%User{}=user, new_plan_key) do
+
+    IO.puts("\n>>> [DEBUG] Iniciando change_subscription para User #{user.id} -> Plano: #{new_plan_key}")
+
+
     new_price_id = Map.get(@plans, new_plan_key)
+    IO.inspect(new_price_id, label: ">>> Novo Price ID")
 
     if is_nil(user.stripe_subscription_id) do
+      IO.puts(">>> ERRO: Utilizador sem ID de assinatura")
       {:error, :no_active_subscription}
     else
-      {:ok, sub} = Stripe.Subscription.retrieve(user.stripe_subscription_id)
-      item_id = List.first(sub.items.data).id
+      IO.puts(">>> Buscando assinatura no Stripe: #{user.stripe_subscription_id}")
+      case Stripe.Subscription.retrieve(user.stripe_subscription_id) do
+        {:ok, sub} ->
+          IO.puts(">>> Assinatura encontrada no Stripe")
+          item_id = List.first(sub.items.data).id
+          IO.inspect(item_id, label: ">>> ID do Item da Assinatura (subscription_item)")
+          #Atualiza a assinatura
+          #O stipe calcula a pro-rata automaticamente para upgrades.
+          #para downgrades, ele dá crédito
+          params = %{
+            items: [%{id: item_id, price: new_price_id}],
+            proration_behavior: "create_prorations",
+            metadata: %{
+              plan_key: new_plan_key,
+              user_id: user.id
+            }
+          }
+          IO.inspect(params, label: ">>> Params enviados para Stripe.Subscription.update")
 
-      #Atualiza a assinatura
-      #O stipe calcula a pro-rata automaticamente para upgrades.
-      #para downgrades, ele dá crédito
-      params = %{
-        items: [%{id: item_id, price: new_price_id}]
-      }
-      Stripe.Subscription.update(user.stripe_subscription_id, params)
-    end
-  end
+          case Stripe.Subscription.update(user.stripe_subscription_id, params) do
+            {:ok, updated_sub} ->
+              IO.puts(">>> SUCESSO: Stripe respondeu com OK")
+              # Opcional: Retornar a sub atualizada para inspeção
+              {:ok, updated_sub}
+           {:error, error} ->
+              IO.inspect(error, label: ">>> ERRO NO UPDATE DO STRIPE")
+              {:error, error}
+          end
+
+        {:error, error} ->
+          IO.inspect(error, label: ">>> ERRO AO BUSCAR ASSINATURA")
+          {:error, error}
+      end
+    end #if
+
+  end #def
 
 end
