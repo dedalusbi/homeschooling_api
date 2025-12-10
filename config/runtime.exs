@@ -73,7 +73,7 @@ if config_env() == :prod do
   secret_key_base = System.fetch_env!("AUTH_SECRET") #Busca a variável de ambiente AUTH_SECRET
 
   #Configuração de Email para produção (SendGrid)
-  config :homeschooling, Homeschooling.Mailer, adapter: Swoosh.Adapters.SendGrid, api_key: System.fetch_env!("SENDGRIP_API_KEY") #Definir esta variável em produção
+  config :homeschooling, Homeschooling.Mailer, adapter: Swoosh.Adapters.SendGrid, api_key: System.fetch_env!("SENDGRID_API_KEY") #Definir esta variável em produção
 
 
   # Configuração do AWS S3
