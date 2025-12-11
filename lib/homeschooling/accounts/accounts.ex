@@ -1617,15 +1617,34 @@ defmodule Homeschooling.Accounts do
   def update_user_stripe_info(user_id, attrs) do
     case Repo.get(User, user_id) do
       %User{} = user ->
-        user
-        |> Ecto.Changeset.cast(attrs, [
-            :stripe_subscription_id,
-            :payment_gateway_customer_id,
-            :current_period_end,
-            :cancel_at_period_end,
-            :subscription_tier
-          ])
-        |> Repo.update()
+        changeset =
+          user
+          |> Ecto.Changeset.cast(attrs, [
+              :stripe_subscription_id,
+              :payment_gateway_customer_id,
+              :current_period_end,
+              :cancel_at_period_end,
+              :subscription_tier
+            ])
+
+        cancel_status = Ecto.Changeset.get_field(changeset, :cancel_at_period_time)
+        #verifica se estamos ativando o cancelamento (cancel_at_period_end == true)
+        #se sim, verificamos se a data (current_period_end) está sendo apagada (nil)
+        changeset =
+          if !is_nil(cancel_status) do
+            case Ecto.Changeset.get_change(changeset, :current_period_end) do
+              nil ->
+                #Se tentar passar nil, removemos essa mudança do changeset,
+                #isso faz o Ecto manter o valor que já estava no banco
+                Ecto.Changeset.delete_change(changeset, :current_period_end)
+              _ ->
+                changeset
+            end
+          else
+            changeset
+          end
+
+        Repo.update(changeset)
       nil ->
         {:error, :user_not_found}
     end

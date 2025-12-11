@@ -36,6 +36,12 @@ defmodule HomeschoolingWeb.WebhookController do
           process_subscription_update(subscription)
           send_resp(conn, 200, "OK")
 
+        #Evento que acontece quando o tempo do cancelamento agendado chega
+        {:ok, %Stripe.Event{type: "customer.subscription.deleted", data: %{object: subscription}}} ->
+          IO.puts(">>> [DEBUG] Assinatura cancelada Definitivamente pelo Stripe")
+          process_subscription_deletion(subscription)
+          send_resp(conn, 200, "OK")
+
         {:ok, event} ->
           #Outros eventos
           IO.puts(">>> [DEBUG] Evento Ignorado: #{event.type}")
@@ -159,6 +165,19 @@ defmodule HomeschoolingWeb.WebhookController do
     end
   end
 
-
+  defp process_subscription_deletion(subscription) do
+    customer_id = subscription.customer
+    user = Accounts.get_user_by_stripe_id(customer_id)
+    if user do
+      IO.puts(">>> Removendo acesso premium do usuário #{user.id}")
+      attrs = %{
+        subscription_tier: :essential,
+        stripe_subscription_id: nil,
+        current_period_end: nil,
+        cancel_at_period_end: false
+      }
+      Accounts.update_user_stripe_info(user.id, attrs)
+    end
+  end
 
 end
