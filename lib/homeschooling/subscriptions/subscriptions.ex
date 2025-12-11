@@ -57,10 +57,14 @@ defmodule Homeschooling.Subscriptions do
       params = %{cancel_at_period_end: true}
 
       case Stripe.Subscription.update(user.stripe_subscription_id, params) do
-        {ok, updated_sub} ->
+        {:ok, updated_sub} ->
           IO.puts(">>> SUCESSO: Assinatura agendada para cancelamento no Stripe")
           #Atualiza imediatamente o status no banco local para refletir a interface
-          Accounts.update_user_stripe_info(user.id, %{cancel_at_period_time: true})
+          current_period_end = DateTime.from_unix!(updated_sub.current_period_end)
+          Accounts.update_user_stripe_info(user.id, %{
+            cancel_at_period_end: true,
+            current_period_end: current_period_end
+          })
           {:ok, updated_sub}
 
         {:error, error} ->
@@ -110,8 +114,12 @@ defmodule Homeschooling.Subscriptions do
                 IO.puts(">>> SUCESSO: Stripe respondeu com OK")
                 #Se o usuário tinha um cancelamento agendado e fez upgrade,
                 #atualizamos o banco local para remover a flag de cancelamento.
+                current_period_end = DateTime.from_unix!(updated_sub.current_period_end)
                 if user.cancel_at_period_end do
-                  Accounts.update_user_stripe_info(user.id, %{cancel_at_period_end: false})
+                  Accounts.update_user_stripe_info(user.id, %{
+                    cancel_at_period_end: false,
+                    current_period_end: current_period_end
+                  })
                 end
                 {:ok, updated_sub}
               {:error, error} ->

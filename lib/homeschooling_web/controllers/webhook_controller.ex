@@ -67,11 +67,23 @@ defmodule HomeschoolingWeb.WebhookController do
     if user_id && plan_key do
       IO.puts("Atualizando usuário #{user_id} para o plano #{plan_key}")
 
+      current_period_end =
+        case Stripe.Subscription.retrieve(stripe_sub_id) do
+          {:ok, sub} ->
+            DateTime.from_unix!(sub.current_period_end)
+          _ ->
+            IO.puts(">>> AVISO: Não foi possível buscar data de assinatura no checkout.")
+            DateTime.add(DateTime.utc_now(), 30, :day)
+        end
+
+
       # Atualiza TUDO de uma vez
       result = Accounts.update_user_stripe_info(user_id, %{
         stripe_subscription_id: stripe_sub_id,
         payment_gateway_customer_id: stripe_cus_id, # Atualiza também o customer_id para garantir
-        subscription_tier: String.to_existing_atom(plan_key) # Força a atualização do plano AQUI também
+        subscription_tier: String.to_existing_atom(plan_key), # Força a atualização do plano AQUI também
+        current_period_end: current_period_end,
+        cancel_at_period_end: false
       })
 
       IO.inspect(result, label: ">> RESULTADO DO UPGRADE")
