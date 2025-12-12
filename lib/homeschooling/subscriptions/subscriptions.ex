@@ -9,6 +9,11 @@ defmodule Homeschooling.Subscriptions do
     "educator" => "price_1SZZp3JQV5vJKLkqZUahRNN1"
   }
 
+  # Helper para saber a hierarquia dos planos (1 = Family, 2 = Educator)
+  defp plan_weight("family"), do: 1
+  defp plan_weight("educator"), do: 2
+  defp plan_weight(_), do: 0
+
   #Cria uma sessão de checkout no Stripe para que o usuário faça o upgrade.
   #Retorna a URL para onde o frontend deve redirecionar o usuário.
   def create_checkout_session(%User{}=user, plan_key) do
@@ -83,55 +88,92 @@ defmodule Homeschooling.Subscriptions do
     new_price_id = Map.get(@plans, new_plan_key)
     IO.inspect(new_price_id, label: ">>> Novo Price ID")
 
+    #Define se é Upgrade ou Downgrade
+    current_weight = plan_weight(Atom.to_string(user.subscription_tier))
+    new_weight = plan_weight(new_plan_key)
+    is_downgrade = new_weight < current_weight
+
+
     if is_nil(new_price_id) do
       {:error, :invalid_plan_configuration}
     else
-      if is_nil(user.stripe_subscription_id) do
-        IO.puts(">>> ERRO: Usuário sem ID de assinatura para fazer upgrade/downgrade")
-        {:error, :no_active_subscription}
-      else
         IO.puts(">>> Buscando assinatura no Stripe: #{user.stripe_subscription_id}")
         case Stripe.Subscription.retrieve(user.stripe_subscription_id) do
           {:ok, sub} ->
-            IO.puts(">>> Assinatura encontrada no Stripe")
-            #pega o id do item atual para substituí-lo
-            item_id = List.first(sub.items.data).id
-            IO.inspect(item_id, label: ">>> ID do item da assinatura.")
-            params = %{
-              items: [%{id: item_id, price: new_price_id}],
-              #Garante que a assinatura não será cancelada se o usuário estiver reativando
-              cancel_at_period_end: false,
-              proration_behavior: "create_prorations",
-              metadata: %{
-                plan_key: new_plan_key,
-                user_id: user.id
-              }
-            }
-            IO.inspect(params, label: ">>> Params enviados para Stripe.Subscription.update ")
-
-            case Stripe.Subscription.update(user.stripe_subscription_id, params) do
-              {:ok, updated_sub} ->
-                IO.puts(">>> SUCESSO: Stripe respondeu com OK")
-                #Se o usuário tinha um cancelamento agendado e fez upgrade,
-                #atualizamos o banco local para remover a flag de cancelamento.
-                current_period_end = DateTime.from_unix!(updated_sub.current_period_end)
-                if user.cancel_at_period_end do
-                  Accounts.update_user_stripe_info(user.id, %{
-                    cancel_at_period_end: false,
-                    current_period_end: current_period_end
-                  })
-                end
-                {:ok, updated_sub}
-              {:error, error} ->
-                IO.inspect(error, label: ">>> ERRO NO UPDATE DO STRIPE")
-                {:error, error}
+            #Lógica Downgrade Agendado
+            if is_downgrade do
+              #EDUCATOR -> FAMILY
+              handle_downgrade_schedule(sub, new_price_id, new_plan_key)
+            else
+              #FAMILY->EDUCATOR
+              handle_immediate_upgrade(user, sub, new_price_id, new_plan_key)
             end
           {:error, error} ->
             IO.inspect(error, label: ">>> ERRO AO BUSCAR ASSINATURA")
             {:error, error}
         end
-      end
     end
   end #def
 
+  #Lógica UPGRADE (imediato - prorrateio - atualização local)
+  defp handle_immediate_upgrade(user, sub, new_price_id, new_plan_key) do
+    item_id = List.first(sub.itemd.data).id
+
+    params = %{
+      items: [%{id: item_id, price: new_price_id}],
+      cancel_at_period_end: false,
+      proration_behavior: "create_prorations",
+      metadata: %{plan_key: new_plan_key, user_id: user.id}
+    }
+
+    case Stripe.Subscription.update(sub.id, params) do
+      {:ok, updated_sub} ->
+        #atualiza o banco na hora (consistência)
+        Accounts.update_user_stripe_info(user.id, %{
+          subscription_tier: String.to_existing_atom(new_plan_key),
+          current_period_end: DateTime.from_unix!(updated_sub.current_period_end),
+          cancel_at_period_end: false
+        })
+        #retorna status para o front saber que foi imediato
+        {:ok, %{status: "active", plan: new_plan_key}}
+      {:error, error} -> {:error, error}
+    end
+  end
+
+
+  #lógica DOWNGRADE (agendado - estilo netflix)
+  defp handle_downgrade_schedule(sub, new_price_id, _new_plan_key) do
+    current_item = List.first(sub.itemd.data)
+
+    #Verifica se já existe um agendamento, senão cria
+    {:ok, schedule} =
+      if sub.schedule do
+        Stripe.SubscriptionSchedule.retrieve(sub.schedule)
+      else
+        Stripe.SubscriptionSchedule.create(%{from_subscription: sub.id})
+      end
+    #Configura as fases: mantém atual até o fim -> troca depois
+    params = %{
+      phases: [
+        %{
+          start_date: schedule.current_phase.start_date,
+          end_date: sub.current_period_end,
+          items: [%{price: current_item.price.id, quantity: 1}]
+        },
+        %{
+          start_date: sub.current_period_end,
+          items: [%{price: new_price_id, quantity: 1}],
+          proration_behavior: "none"
+        }
+      ]
+    }
+
+    case Stripe.SubscriptionSchedule.update(schedule.id, params) do
+      {:ok, _sched} ->
+        #não mudar o tier no banco agora. O usuário ainda é premim.
+        #Retornamos status 'scheduled' para o frnt avisar
+        {:ok, %{status: "scheduled", date: sub.current_period_end}}
+      {:error, error} -> {:error, error}
+    end
+  end
 end
