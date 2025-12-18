@@ -38,6 +38,17 @@ defmodule HomeschoolingWeb.SubscriptionController do
 
     # Chama a função de contexto que atualiza diretamente no Stripe
     case Subscriptions.change_subscription(current_user, plan_key) do
+
+      {:ok, %{status: "scheduled"} = result} ->
+        conn
+        |> put_status(:ok)
+        |> json(result)
+
+      {:ok, %{status: "active"} = result} ->
+        conn
+        |> put_status(:ok)
+        |> json(result)
+
       {:ok, _subscription} ->
         # Sucesso! O Webhook depois tratará de atualizar o banco local,
         # mas podemos retornar sucesso imediato.
@@ -60,6 +71,28 @@ defmodule HomeschoolingWeb.SubscriptionController do
         conn
         |> put_status(:bad_gateway)
         |> json(%{error: "Erro ao alterar o plano. Verifique o método de pagamento."})
+
+      {:error, reason} ->
+        conn
+         |> put_status(:bad_request)
+         |> json(%{error: %{message: "erro ao alterar plano.", details: inspect(reason)}})
     end
   end
+
+  def cancel_change(conn, _params) do
+    user = conn.assigns.current_user
+    case Subscriptions.cancel_scheduled_change(user) do
+      {:ok, _} ->
+        conn
+        |> put_status(:ok)
+        |> json(%{message: "Mudança agendada cancelada com sucesso."})
+
+      {:error, reason} ->
+        conn
+        |> put_status(:bad_request)
+        |> json(%{error: "Não foi possível cancelar a mudança.", details: inspect(reason)})
+    end
+  end
+
+
 end

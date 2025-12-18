@@ -1624,10 +1624,12 @@ defmodule Homeschooling.Accounts do
               :payment_gateway_customer_id,
               :current_period_end,
               :cancel_at_period_end,
-              :subscription_tier
+              :subscription_tier,
+              :upcoming_subscription_tier,
+              :upcoming_tier_date
             ])
 
-        cancel_status = Ecto.Changeset.get_field(changeset, :cancel_at_period_time)
+        cancel_status = Ecto.Changeset.get_field(changeset, :cancel_at_period_end)
         #verifica se estamos ativando o cancelamento (cancel_at_period_end == true)
         #se sim, verificamos se a data (current_period_end) está sendo apagada (nil)
         changeset =

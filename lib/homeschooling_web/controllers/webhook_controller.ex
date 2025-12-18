@@ -65,6 +65,7 @@ defmodule HomeschoolingWeb.WebhookController do
 
     user_id = session.metadata["user_id"]
     plan_key = session.metadata["plan_key"]
+    plan_key_atom = if is_binary(plan_key), do: String.to_existing_atom(plan_key), else: plan_key
 
     # Extrai os IDs corretos
     stripe_sub_id = session.subscription # Deve ser "sub_..."
@@ -108,6 +109,8 @@ defmodule HomeschoolingWeb.WebhookController do
 
     if user do
       plan_key = get_plan_key_from_price(subscription.items.data)
+      plan_key_atom =
+        if is_binary(plan_key), do: String.to_existing_atom(plan_key), else: plan_key
       IO.inspect(plan_key, label: "3. Chave do plano identificada")
 
       current_period_end = case subscription.current_period_end do
@@ -123,6 +126,18 @@ defmodule HomeschoolingWeb.WebhookController do
         cancel_at_period_end: subscription.cancel_at_period_end,
         stripe_subscription_id: subscription.id
       }
+
+      #lógica de limpeza do agendamento
+      #Se o plano novo for igual ao que estava agendado limpamos os campos (a troca aconteceu)
+      attrs =
+        if user.upcoming_subscription_tier == plan_key_atom do
+          Map.merge(attrs, %{
+            upcoming_subscription_tier: nil,
+            upcoming_tier_date: nil
+          })
+        else
+          attrs
+        end
 
       result = Accounts.update_user_stripe_info(user.id, attrs)
       IO.inspect(result, label: "5. Resultado do update no banco")
@@ -174,7 +189,9 @@ defmodule HomeschoolingWeb.WebhookController do
         subscription_tier: :essential,
         stripe_subscription_id: nil,
         current_period_end: nil,
-        cancel_at_period_end: false
+        cancel_at_period_end: false,
+        upcoming_subscription_tier: nil,
+        upcoming_tier_date: nil
       }
       Accounts.update_user_stripe_info(user.id, attrs)
     end

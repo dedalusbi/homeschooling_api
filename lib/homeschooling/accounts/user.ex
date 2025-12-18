@@ -5,7 +5,7 @@ defmodule Homeschooling.Accounts.User do
 
   @primary_key {:id, Ecto.UUID, autogenerate: true}
   @foreign_key_type Ecto.UUID
-  @derive {Jason.Encoder, only: [:id, :email, :full_name, :avatar_id, :subscription_tier, :ai_requests_count, :payment_gateway_customer_id, :stripe_subscription_id, :current_period_end, :cancel_at_period_end]}
+  @derive {Jason.Encoder, only: [:id, :email, :full_name, :avatar_id, :subscription_tier, :upcoming_subscription_tier, :upcoming_tier_date, :ai_requests_count, :payment_gateway_customer_id, :stripe_subscription_id, :current_period_end, :cancel_at_period_end]}
   @schema_prefix "public"
   schema "users" do
     field :email, :string
@@ -20,9 +20,16 @@ defmodule Homeschooling.Accounts.User do
     field :verified_at, :utc_datetime
     field :current_period_end, :utc_datetime
     field :cancel_at_period_end, :boolean, default: false
+    field :upcoming_subscription_tier, Ecto.Enum, values: [:essential, :family, :educator]
+    field :upcoming_tier_date, :utc_datetime
 
 
     timestamps()
+  end
+
+  def subscription_changeset(user, attrs) do
+    user
+    |> cast(attrs, [:stripe_subscription_id, :payment_gateway_customer_id, :current_period_end, :cancel_at_period_end, :subscription_tier, :upcoming_subscription_tier, :upcoming_tier_date])
   end
 
 

@@ -60,6 +60,7 @@ defmodule HomeschoolingWeb.Router do
     post "/assessments/:id/attachments", AssessmentController, :create_attachment
     post "/subscriptions/checkout", SubscriptionController, :create_checkout_session
     post "/subscriptions/change", SubscriptionController, :change_plan
+    post "/subscriptions/cancel-change", SubscriptionController, :cancel_change
     put "/students/:id", StudentController, :update
     put "/subjects/:id", SubjectController, :update
     put "/schedules/:id", ScheduleController, :update
@@ -105,6 +106,7 @@ defmodule HomeschoolingWeb.Router do
     options "/assessments/:id", AssessmentController, :delete
     options "/subscriptions/checkout", SubscriptionController, :create_checkout_session
     options "/subscriptions/change", SubscriptionController, :change_plan
+    options "/subscriptions/cancel-change", SubscriptionController, :cancel_change
 
   end
 
