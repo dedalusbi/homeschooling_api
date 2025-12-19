@@ -1,6 +1,8 @@
 defmodule Homeschooling.Accounts.Subject do
 
   use Ecto.Schema
+  alias Homeschooling.Accounts.SubjectTutor
+  alias Homeschooling.Accounts.User
   import Ecto.Changeset
 
   @primary_key {:id, Ecto.UUID, autogenerate: true}
@@ -15,10 +17,10 @@ defmodule Homeschooling.Accounts.Subject do
     field :teaching_materials, :string
 
     belongs_to :student, Homeschooling.Accounts.Student, type: Ecto.UUID
-
     has_many :assessments, Homeschooling.Accounts.Assessment
-
     has_one :completion, Homeschooling.Accounts.SubjectCompletion
+    has_many :subject_tutors, SubjectTutor
+    has_many :tutors, through: [:subject_tutors, :user]
 
     timestamps()
   end

@@ -1,6 +1,9 @@
 defmodule Homeschooling.Accounts.User do
   use Ecto.Schema
   alias Pbkdf2
+  alias Homeschooling.Accounts.SubjectTutor
+  alias Homeschooling.Accounts.Subject
+  alias Homeschooling.Accounts.Guardian
   import Ecto.Changeset
 
   @primary_key {:id, Ecto.UUID, autogenerate: true}
@@ -23,6 +26,10 @@ defmodule Homeschooling.Accounts.User do
     field :upcoming_subscription_tier, Ecto.Enum, values: [:essential, :family, :educator]
     field :upcoming_tier_date, :utc_datetime
 
+    has_many :guardians, Guardian
+    has_many :students, through: [:guardians, :student]
+    has_many :subject_tutors, SubjectTutor
+    has_many :tutored_subject, through: [:subject_tutors, :subject]
 
     timestamps()
   end

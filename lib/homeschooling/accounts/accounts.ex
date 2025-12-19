@@ -5,7 +5,7 @@ defmodule Homeschooling.Accounts do
   alias Homeschooling.Accounts.User
   alias Homeschooling.Accounts.PasswordResetToken
   alias Homeschooling.Accounts.EmailVerificationToken
-  alias Homeschooling.Accounts.{Student, Guardian, Subject, SubjectCompletion, ScheduleEntry, DailyLog, LogAttachment, Assessment, AssessmentAttachment}
+  alias Homeschooling.Accounts.{Student, Guardian, Subject, SubjectCompletion, ScheduleEntry, DailyLog, LogAttachment, Assessment, AssessmentAttachment, SubjectTutor}
   alias ExAws.S3
 
   @default_avatars [
@@ -1651,4 +1651,48 @@ defmodule Homeschooling.Accounts do
         {:error, :user_not_found}
     end
   end
+
+  # ---- GESTÃO DE TUTORES DE MATÉRIA -----
+
+  #Adiciona um usuário existente como tutor de uma matéria
+  def add_tutor_to_subject(user_id, subject_id) do
+    %SubjectTutor{}
+    |> SubjectTutor.changeset(%{user_id: user_id, subject_id: subject_id})
+    |> Repo.insert()
+  end
+
+  #Remove um tutor da matéria
+  def remove_tutor_from_subject(user_id, subject_id) do
+    tutor_entry = Repo.get_by(SubjectTutor, user_id: user_id, subject_id: subject_id)
+    case tutor_entry do
+      nil -> {:error, :not_found}
+      entry -> Repo.delete(entry)
+    end
+  end
+
+  #Lista todos os tutores de uma matéria específica
+  def list_tutors_for_subject(subject_id) do
+    Subject
+    |> Repo.get(subject_id)
+    |> Repo.preload(:tutors)
+    |> case do
+      nil -> []
+      subject -> subject.tutors
+    end
+  end
+
+  #Lista todas as matérias que um usuário leciona (é tutor)
+  def list_subjects_for_tutor(user_id) do
+    User
+    |> Repo.get(user_id)
+    |> Repo.preload(:tutored_subjects)
+    |> case do
+      nil -> []
+      user -> user.tutored_subjects
+    end
+  end
+
+
+  # fim ---- GESTÃO DE TUTORES DE MATÉRIA -----
+
 end
