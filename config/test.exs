@@ -1,4 +1,5 @@
 import Config
+config :homeschooling, Oban, testing: :manual
 
 # Configure your database
 #

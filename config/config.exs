@@ -7,6 +7,12 @@
 # General application configuration
 import Config
 
+config :homeschooling, Oban,
+  engine: Oban.Engines.Basic,
+  notifier: Oban.Notifiers.Postgres,
+  queues: [default: 10],
+  repo: Homeschooling.Repo
+
 config :homeschooling,
   ecto_repos: [Homeschooling.Repo],
   generators: [timestamp_type: :utc_datetime]
@@ -43,17 +49,16 @@ config :phoenix, :json_library, Jason
 # of this file so it overrides the configuration defined above.
 import_config "#{config_env()}.exs"
 
-#Configuração para os limites de alunos por assinatura
+# Configuração para os limites de alunos por assinatura
 config :homeschooling, :subscription_limits, %{
   essential: 1,
   family: 3,
   educator: 999_999
-
 }
 
 config :ex_aws,
-  #access_key_id: System.get_env("AWS_ACCESS_KEY_ID"),
-  #secret_access_key: System.get_env("AWS_SECRET_ACESS_KEY")
+  # access_key_id: System.get_env("AWS_ACCESS_KEY_ID"),
+  # secret_access_key: System.get_env("AWS_SECRET_ACESS_KEY")
   access_key_id: "AKIAYS2NSFDZRWMOQ2HZ",
   secret_access_key: "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",
   region: "us-east-1"
@@ -72,5 +77,11 @@ config :mint,
   ]
 
 config :stripity_stripe,
-  api_key: "sk_test_51SZZbLJQV5vJKLkqZZZd2iUdmPm8IFCbQ6dGNBBSgMUnFYfEb6hAtjey2OT6VDsst1wGJkz4HE7ddQpFs7OtTRIr002ouLIb2r",
+  api_key:
+    "sk_test_51SZZbLJQV5vJKLkqZZZd2iUdmPm8IFCbQ6dGNBBSgMUnFYfEb6hAtjey2OT6VDsst1wGJkz4HE7ddQpFs7OtTRIr002ouLIb2r",
   signing_secret: "whsec_9bed91c997649e891dfb6d2431b78fcd6656e0cf676da46a3022d24334439da0"
+
+  config :homeschooling, Oban,
+    repo: Homeschooling.Repo,
+    plugins: [Oban.Plugins.Pruner],
+    queues: [default: 10, notifications: 50]

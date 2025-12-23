@@ -65,14 +65,15 @@ config :phoenix, :plug_init_mode, :runtime
 # Disable swoosh api client as it is only required for production adapters.
 config :swoosh, :api_client, false
 
+# Configuração do Joken para desenvolvimento
+config :homeschooling,
+       :jwt_secret,
+       "2CpyFS6xIcZ/Gjab6Fa1hScuLN4R02MNscSK6De3e8jgvFFexLwfZCwLF+89loP1"
 
-#Configuração do Joken para desenvolvimento
-config :homeschooling, :jwt_secret, "2CpyFS6xIcZ/Gjab6Fa1hScuLN4R02MNscSK6De3e8jgvFFexLwfZCwLF+89loP1"
-
-#Configuração do Swoosh Mailer
+# Configuração do Swoosh Mailer
 config :homeschooling, Homeschooling.Mailer, adapter: Swoosh.Adapters.Local
 
-#Configuração para pré-visualizar emails em /dev/mailbox
+# Configuração para pré-visualizar emails em /dev/mailbox
 config :swoosh, :api_client, false
 config :swoosh, :mailbox_preview, mode: :alias
 
@@ -83,5 +84,6 @@ config :mint,
   ]
 
 config :stripity_stripe,
-  api_key: "sk_test_51SZZbLJQV5vJKLkqZZZd2iUdmPm8IFCbQ6dGNBBSgMUnFYfEb6hAtjey2OT6VDsst1wGJkz4HE7ddQpFs7OtTRIr002ouLIb2r",
+  api_key:
+    "sk_test_51SZZbLJQV5vJKLkqZZZd2iUdmPm8IFCbQ6dGNBBSgMUnFYfEb6hAtjey2OT6VDsst1wGJkz4HE7ddQpFs7OtTRIr002ouLIb2r",
   signing_secret: "whsec_9bed91c997649e891dfb6d2431b78fcd6656e0cf676da46a3022d24334439da0"

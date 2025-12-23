@@ -1,11 +1,14 @@
 defmodule Homeschooling.Accounts.SubjectTutor do
   use Ecto.Schema
   import Ecto.Changeset
+  alias Homeschooling.Accounts.{User, Subject}
+
+
   @primary_key {:id, Ecto.UUID, autogenerate: true}
   @foreign_key_type Ecto.UUID
   schema "subject_tutors" do
-    belongs_to :user, Homeschooling.Accounts.User
-    belongs_to :subject, Homeschooling.Accounts.Subject
+    belongs_to :user, User
+    belongs_to :subject, Subject
     timestamps()
   end
 
@@ -14,6 +17,6 @@ defmodule Homeschooling.Accounts.SubjectTutor do
     subject_tutor
     |> cast(attrs, [:user_id, :subject_id])
     |> validate_required([:user_id, :subject_id])
-    |> unique_constraint([:user_id, :subject_id])
+    |> unique_constraint([:user_id, :subject_id], message: "Este usuário já é tutor desta matéria.")
   end
 end

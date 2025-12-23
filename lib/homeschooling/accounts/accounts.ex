@@ -5,7 +5,7 @@ defmodule Homeschooling.Accounts do
   alias Homeschooling.Accounts.User
   alias Homeschooling.Accounts.PasswordResetToken
   alias Homeschooling.Accounts.EmailVerificationToken
-  alias Homeschooling.Accounts.{Student, Guardian, Subject, SubjectCompletion, ScheduleEntry, DailyLog, LogAttachment, Assessment, AssessmentAttachment, SubjectTutor}
+  alias Homeschooling.Accounts.{Student, Guardian, Subject, SubjectCompletion, ScheduleEntry, DailyLog, LogAttachment, Assessment, AssessmentAttachment, SubjectTutor, Invitation}
   alias ExAws.S3
 
   @default_avatars [
@@ -1694,5 +1694,62 @@ defmodule Homeschooling.Accounts do
 
 
   # fim ---- GESTÃO DE TUTORES DE MATÉRIA -----
+
+  # --- Convites ----
+
+  def create_invitation(attrs) do
+    %Invitation{}
+    |> Invitation.changeset(attrs)
+    |> Repo.insert()
+    #TODO: despachar o email com o link contendo o token. Usar o Swoosh.
+  end
+
+  def get_invitation_by_token(token) do
+    Repo.get_by(Invitation, token: token, status: :pending)
+  end
+
+  def accept_invitation(%User{} = user, token) do
+    #Inicia uma transação porque vamos mexer em duas tabelas
+    Repo.transaction(fn ->
+      with %Invitation{status: :pending} = invitation <- get_invitation_by_token(token),
+        :ok <- check_expiration(invitation),
+        {:ok, _assoc} <- create_association_from_invite(user, invitation),
+        {:ok, _invite} <- mark_invitation_accepted(invitation) do
+
+          {:ok, "Convite aceito com sucesso!"}
+        else
+          nil -> Repo.rollback("Convite inválido ou não encontrado.")
+          {:error, reason} -> Repo.rollback(reason)
+        end
+    end)
+  end
+
+  defp check_expiration(%Invitation{expires_at: expires_at}) do
+    if DateTime.compare(expires_at, DateTime.utc_now()) == :gt do
+      :ok
+    else
+      {:error, "Convite expirado."}
+    end
+  end
+
+  defp create_association_from_invite(user, %Invitation{role: :guardian, student_id: student_id}) do
+    %Guardian{}
+    |> Guardian.changeset(%{user_id: user.id, student_id: student_id})
+    |> Repo.insert()
+  end
+
+  defp create_association_from_invite(user, %Invitation{role: :tutor, subject_id: subject_id}) do
+    %SubjectTutor{}
+      |> SubjectTutor.changeset(%{user_id: user.id, subject_id: subject_id})
+      |> Repo.insert()
+  end
+
+  defp mark_invitation_accepted(invitation) do
+    invitation
+    |> Ecto.Changeset.change(status: :accepted)
+    |> Repo.update()
+  end
+
+  # --- Fim Convites ----
 
 end

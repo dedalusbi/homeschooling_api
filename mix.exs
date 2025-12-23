@@ -44,7 +44,6 @@ defmodule Homeschooling.MixProject do
       {:ecto_sql, "~> 3.13"},
       {:postgrex, ">= 0.0.0"},
       {:swoosh, "~> 1.16"},
-      {:req, "~> 0.5"},
       {:telemetry_metrics, "~> 1.0"},
       {:telemetry_poller, "~> 1.0"},
       {:gettext, "~> 0.26"},
@@ -58,7 +57,10 @@ defmodule Homeschooling.MixProject do
       {:ex_aws, "~> 2.1"},
       {:ex_aws_s3, "~> 2.0"},
       {:hackney, "~> 1.17"},
-      {:stripity_stripe, "~> 3.2"}
+      {:stripity_stripe, "~> 3.2"},
+      {:igniter, "~> 0.6", only: [:dev, :test]},
+      {:oban, "~> 2.17"},
+      {:req, "~>0.5"}
     ]
   end
 

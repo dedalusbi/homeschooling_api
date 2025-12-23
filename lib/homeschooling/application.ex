@@ -11,6 +11,7 @@ defmodule Homeschooling.Application do
       HomeschoolingWeb.Telemetry,
       Homeschooling.Repo,
       {DNSCluster, query: Application.get_env(:homeschooling, :dns_cluster_query) || :ignore},
+      {Oban, Application.fetch_env!(:homeschooling, Oban)},
       {Phoenix.PubSub, name: Homeschooling.PubSub},
       # Start a worker by calling: Homeschooling.Worker.start_link(arg)
       # {Homeschooling.Worker, arg},
