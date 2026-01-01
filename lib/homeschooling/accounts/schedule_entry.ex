@@ -62,6 +62,7 @@ defmodule Homeschooling.Accounts.ScheduleEntry do
       :start_time,
       :end_time,
     ])
+    |> validate_guardian_belongs_to_student()
     |> validate_event_type()
     |> validate_dates()
   end
@@ -96,6 +97,10 @@ defmodule Homeschooling.Accounts.ScheduleEntry do
     else
       changeset
     end
+  end
+
+  defp validate_guardian_belongs_to_student(changeset) do
+    changeset
   end
 
 end

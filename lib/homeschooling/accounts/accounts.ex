@@ -896,9 +896,13 @@ defmodule Homeschooling.Accounts do
 
   #Atualiza uma única entrada no cronograma (aula)
   def update_schedule_entry_for_user(%User{}=user, entry_id, attrs) do
-    case get_schedule_entry_for_user(user, entry_id) do
-      {:ok, entry} ->
-        #Verifica se estamos a atualizar uma série recorrente
+
+    #Primeiro, buscamos a entrada
+    with {:ok, entry} <- get_schedule_entry_for_user(user, entry_id),
+      #Validamos o guardião ANTES de qualquer lógica de recorrência
+      :ok <- validate_assigned_guardian(entry.student_id, entry.subject_id, attrs["assigned_guardian_id"] || attrs[:assigned_guardian_id]) do
+
+      #Verifica se estamos a atualizar uma série recorrente
         is_series_update = entry.is_recurring and Map.has_key?(attrs, "days_of_week")
 
         if is_series_update do
@@ -907,7 +911,9 @@ defmodule Homeschooling.Accounts do
             #Remove todas as entradas do grupo antigo
             Repo.delete_all(from se in ScheduleEntry, where: se.recurrence_group_id == ^entry.recurrence_group_id)
             #Chama a função de criação para gerar as novas entradas (precisamos passar o student_id pois a função create espera)
-            create_attrs = Map.put(attrs, "student_id", entry.student_id)
+            create_attrs = attrs
+                            |> Map.put("student_id", entry.student_id)
+                            |> Map.put_new("subject_id", entry.subject_id)
             #Reutilizamos a lógica de criação (que já gera novo group_id e lida com dias)
             case create_schedule_entries(user, entry.student_id, create_attrs) do
               {:ok, new_entries} -> List.first(new_entries)
@@ -920,8 +926,15 @@ defmodule Homeschooling.Accounts do
           |> ScheduleEntry.changeset(attrs)
           |> Repo.update()
         end
+
+      else
+        {:error, :forbidden, msg} -> {:error, msg}
+        error -> error
     end
   end
+
+
+
 
 
   #Remove uma única entrada do cronograma(aula)
@@ -1751,5 +1764,27 @@ defmodule Homeschooling.Accounts do
   end
 
   # --- Fim Convites ----
+
+
+  defp validate_assigned_guardian(_student_id, _subject_id, nil), do: :ok #Se ninguém enviou ID, segue o baile
+  defp validate_assigned_guardian(student_id, subject_id, guardian_user_id) do
+    #Verifica na tabela de Guardians (responsáveis gerais)
+    is_guardian = Repo.exists?(from g in Guardian,
+      where: g.student_id == ^student_id and g.user_id == ^guardian_user_id
+    )
+    #Verifica na tabela de SubjectTutors (professores específicos da matéria)
+    is_tutor = Repo.exists?(from st in SubjectTutor,
+      where: st.subject_id == ^subject_id and st.user_id == ^guardian_user_id
+    )
+
+    if is_guardian or is_tutor do
+      :ok
+    else
+      {:error, :forbidden, "O usuário informado não tem permissão para ser responsável por esta aula."}
+    end
+
+
+  end
+
 
 end
