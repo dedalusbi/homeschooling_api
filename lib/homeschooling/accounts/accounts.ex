@@ -5,7 +5,7 @@ defmodule Homeschooling.Accounts do
   alias Homeschooling.Accounts.User
   alias Homeschooling.Accounts.PasswordResetToken
   alias Homeschooling.Accounts.EmailVerificationToken
-  alias Homeschooling.Accounts.{Student, Guardian, Subject, SubjectCompletion, ScheduleEntry, DailyLog, LogAttachment, Assessment, AssessmentAttachment, SubjectTutor, Invitation}
+  alias Homeschooling.Accounts.{Student, Guardian, Subject, SubjectCompletion, ScheduleEntry, DailyLog, LogAttachment, Assessment, AssessmentAttachment, SubjectTutor, Invitation, UserDevice}
   alias ExAws.S3
 
   @default_avatars [
@@ -1782,9 +1782,57 @@ defmodule Homeschooling.Accounts do
     else
       {:error, :forbidden, "O usuário informado não tem permissão para ser responsável por esta aula."}
     end
-
-
   end
+
+
+  def get_schedule!(id), do: Repo.get!(ScheduleEntry, id)
+  def get_schedule(id), do: Repo.get(ScheduleEntry, id)
+
+
+
+  # --- INÍCIO DA SEÇÃO DE DISPOSITIVOS E CONVITES ---
+
+  #Gestão de Dispositivos (Push Notifications)
+  def register_device(%User{}=user, attrs) do
+    attrs = Map.put(attrs, "user_id", user.id)
+
+    %UserDevice{}
+    |> UserDevice.changeset(attrs)
+    |> Repo.insert(
+      on_conflict: :replace_all, #se o token já existe, atualiza o dono/info
+      conflict_target: :fcm_token
+    )
+  end
+
+  #Busca tokens FCM de uma lista de IDs de usuários
+  #útil para enviar notificação para Pai, Mãe e Tutor ao mesmo tempo
+  def list_device_tokens_for_users(user_ids) when is_list(user_ids) do
+    from(d in UserDevice,
+      where: d.user_id in ^user_ids,
+      select: d.fcm_token
+    )
+    |> Repo.all()
+    |> Enum.uniq() #evita enviar 2x para o mesmo token
+  end
+
+
+  #GESTÃO DE CONVITES
+  #Cria o convite e (teoricamente) envia o email
+  def create_invitation(inviter, attrs) do
+    attrs = Map.put(attrs, "inviter_id", inviter.id)
+
+    %Invitation{}
+    |> Invitation.changeset(attrs)
+    |> Repo.insert()
+    |> case do
+      {:ok, invitation} ->
+        #disparamos o email usando o módulo Mailer
+        #Homeschooling.Mailer.send_invitation(invitation)
+        {:ok, invitation}
+      error -> error
+    end
+  end
+
 
 
 end
