@@ -1834,5 +1834,52 @@ defmodule Homeschooling.Accounts do
   end
 
 
+  def list_pending_invitations(user) do
+    #lista convites feitos por este usuário
+    Repo.all(from i in Invitation, where: i.inviter_id == ^user.id and i.status == :pending)
+  end
 
+  def get_invitation_by_token(token) do
+    Repo.get_by(Invitation, token: token, status: :pending)
+    |> Repo.preload([:student, :subject, :inviter])
+  end
+
+  def accept_invitation(%User{}=user, token) do
+    Repo.transaction(fn ->
+      with %Invitation{status: :pending} = invitation <- get_invitation_by_token(token),
+        :ok <- check_invitation_expiration(invitation),
+        {:ok, _assoc} <- create_association_from_invite(user, invitation),
+        {:ok, _invite} <- mark_invitation_accepted(invitation) do
+          %{message: "Convite aceito com sucesso!", role: invitation.role}
+        else
+          nil -> Repo.rollback("Convite não encontrado ou inválido.")
+          {:error, reason} -> Repo.rollback(reason)
+        end
+      end)
+  end
+
+  defp check_invitation_expiration(invitation) do
+    if DateTime.after?(invitation.expires_at, DateTime.utc_now()), do: :ok, else: {:error, "Convite expirado."}
+  end
+
+  #Cria o registro na tabela Guardian
+  defp create_association_from_invite(user, %Invitation{role: :guardian, student_id: student_id}) do
+    %Guardian{}
+    |> Guardian.changeset(%{user_id: user.id, student_id: student_id})
+  end
+  #Cria o registro na tabela SubjectTutor
+  defp create_association_from_invite(user, %Invitation{role: :tutor, subject_id: subject_id}) do
+    %SubjectTutor{}
+    |> SubjectTutor.changeset(%{user_id: user.id, subject_id: subject_id})
+    |> Repo.insert()
+  end
+  defp mark_invitation_accepted(invitation) do
+    invitation
+    |> Ecto.Changeset.change(status: :accepted)
+    |> Repo.update()
+  end
+  #auxiliar para o dropdown "Atribuir responsável"
+  def list_guardians_and_tutors_for_student(student_id) do
+    #busca guardiões (pais)
+  end
 end
