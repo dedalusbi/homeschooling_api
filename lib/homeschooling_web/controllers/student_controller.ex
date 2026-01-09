@@ -127,7 +127,11 @@ defmodule HomeschoolingWeb.StudentController do
   end
 
 
-
+  #GET /api/students/:id/guardians
+  def index_guardians(conn, %{"student_id" -> id}) do
+    list= Accounts.list_guardians_and_tutors_for_student(id)
+    json(conn, %{data: list})
+  end
 
 
 end
