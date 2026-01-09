@@ -1878,8 +1878,26 @@ defmodule Homeschooling.Accounts do
     |> Ecto.Changeset.change(status: :accepted)
     |> Repo.update()
   end
+
   #auxiliar para o dropdown "Atribuir responsável"
   def list_guardians_and_tutors_for_student(student_id) do
     #busca guardiões (pais)
+    guardians =
+      from(g in Guardian,
+        where: g.student_id == ^student_id,
+        preload: [:user])
+      |> Repo.all()
+      |> Enum.map(fn g -> %{id: g.user.id, name: g.user.full_name, role: :guardian, label: "Responsável"} end)
+
+    #Busca tutores de matérias deste aluno
+    tutors =
+      from(st in SubjectTutor,
+        join: s in assoc(st, :subject),
+        where: s.student_id == ^student_id,
+        preload: [:user, :subject])
+      |> Repo.all()
+      |> Enum.map(fn t -> %{id: t.user.id, name: t.user.full_name, role: :tutor, label: "Professor - #{t.subject.name}"} end)
+
+    guardians ++ tutors
   end
 end
