@@ -191,5 +191,15 @@ defmodule HomeschoolingWeb.SubjectController do
     end
   end
 
+  def delete_tutor(conn, %{"subject_id" => subject_id, "tutor_id" => tutor_id}) do
+
+    case Accounts.remove_tutor(subject_id, tutor_id) do
+      {:ok, _} ->
+          send_resp(conn, :no_content, "")
+      {:error, :not_found} ->
+        conn |> put_status(:not_found) |> json(%{error: "Tutor não encontrado"})
+    end
+  end
+
 
 end

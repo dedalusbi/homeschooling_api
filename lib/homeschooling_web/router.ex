@@ -47,6 +47,8 @@ defmodule HomeschoolingWeb.Router do
     get "/logs/:id/attachments", DailyLogController, :index_attachments
     get "/dashboard/stats", DashboardController, :stats
     get "/assessments/upload_url", AssessmentController, :upload_url
+    get "/invitations/check/:token", InvitationController, :show
+    get "/students/:student_id/guardians", StudentController, :index_guardians
     post "/students", StudentController, :create
     post "/students/:student_id/subjects", SubjectController, :create
     post "/subjects/:id/complete", SubjectController, :complete
@@ -61,6 +63,9 @@ defmodule HomeschoolingWeb.Router do
     post "/subscriptions/checkout", SubscriptionController, :create_checkout_session
     post "/subscriptions/change", SubscriptionController, :change_plan
     post "/subscriptions/cancel-change", SubscriptionController, :cancel_change
+    post "/devices", DeviceController, :create
+    post "/invitations", InvitationController, :create
+    post "/invitations/accept", InvitationController, :accept
     put "/students/:id", StudentController, :update
     put "/subjects/:id", SubjectController, :update
     put "/schedules/:id", ScheduleController, :update
@@ -70,6 +75,8 @@ defmodule HomeschoolingWeb.Router do
     delete "/schedules/:id", ScheduleController, :delete
     delete "/schedules/:id/occurrence", ScheduleController, :delete_occurrence
     delete "/assessments/:id", AssessmentController, :delete
+    delete "/students/:student_id/guardians/:guardian_id", StudentController, :delete_guardian
+    delete "/subjects/:subject_id/tutors/:tutor_id", SubjectController, :delete_tutor
 
 
     options "/me", UserController, :me
@@ -107,6 +114,13 @@ defmodule HomeschoolingWeb.Router do
     options "/subscriptions/checkout", SubscriptionController, :create_checkout_session
     options "/subscriptions/change", SubscriptionController, :change_plan
     options "/subscriptions/cancel-change", SubscriptionController, :cancel_change
+    options "/devices", DeviceController, :create
+    options "/invitations", InvitationController, :create
+    options "/invitations/accept", InvitationController, :accept
+    options "/invitations/check/:token", InvitationController, :show
+    options "/students/:student_id/guardians", StudentController, :index_guardians
+    options "/students/:student_id/guardians/:guardian_id", StudentController, :delete_guardian
+    options "/subjects/:subject_id/tutors/:tutor_id", SubjectController, :delete_tutor
 
   end
 

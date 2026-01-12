@@ -9,6 +9,7 @@ defmodule Homeschooling.Repo.Migrations.CreateUserDevices do
       add :device_info, :map
       timestamps()
     end
+
     create index(:user_devices, [:user_id])
     create unique_index(:user_devices, [:fcm_token])
   end

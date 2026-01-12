@@ -1900,4 +1900,27 @@ defmodule Homeschooling.Accounts do
 
     guardians ++ tutors
   end
+
+  #REmove um Guardian de um aluno
+  def remove_guardian(student_id, guardian_user_id) do
+    #Impede que o usuário remova a si mesmo se for o último, fazer depois
+
+    guardian_entry = Repo.get_by(Guardian, student_id: student_id, user_id: guardian_user_id)
+
+    case guardian_entry do
+      nil -> {:error, :not_found}
+      entry -> Repo.delete(entry)
+    end
+  end
+
+  #Remove um tutor de uma matéria
+  def remove_tutor(subject_id, tutor_user_id) do
+    tutor_entry = Repo.get_by(SubjectTutor, subject_id: subject_id, user_id: tutor_user_id)
+
+    case tutor_entry do
+      nil -> {:error, :not_found}
+      entry -> Repo.delete(entry)
+    end
+  end
+
 end

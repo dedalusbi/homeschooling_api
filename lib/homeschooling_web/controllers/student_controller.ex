@@ -128,9 +128,19 @@ defmodule HomeschoolingWeb.StudentController do
 
 
   #GET /api/students/:id/guardians
-  def index_guardians(conn, %{"student_id" -> id}) do
+  def index_guardians(conn, %{"student_id" => id}) do
     list= Accounts.list_guardians_and_tutors_for_student(id)
     json(conn, %{data: list})
+  end
+
+  def delete_guardian(conn, %{"student_id" => student_id, "guardian_id" => guardian_id}) do
+    #TODO verificar se o current_user tem permissão para remover (é Guardian)
+    case Accounts.remove_guardian(student_id, guardian_id) do
+      {:ok, _} ->
+          send_resp(conn, :no_content, "")
+      {:error, :not_found} ->
+        conn |> put_status(:not_found) |> json(%{error: "Guardião não encontrado"})
+    end
   end
 
 

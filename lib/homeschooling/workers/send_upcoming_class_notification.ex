@@ -1,5 +1,5 @@
 defmodule Homeschooling.Workers.SendUpcomingClassNotification do
-  use Oban.Worker, queue: notifications, max_attempts: 3
+  use Oban.Worker, queue: :notifications, max_attempts: 3
   alias Homeschooling.Accounts
   alias Homeschooling.Repo
 
