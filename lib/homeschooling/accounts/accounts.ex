@@ -214,6 +214,11 @@ defmodule Homeschooling.Accounts do
     Repo.get(User, id)
   end
 
+  def get_user_by_email(email) do
+    Repo.get_by(User, email: email)
+  end
+
+
 
   #Função privada auxiliar para gerar o token JWT
   defp generate_jwt(user) do
@@ -1819,15 +1824,20 @@ defmodule Homeschooling.Accounts do
   #GESTÃO DE CONVITES
   #Cria o convite e (teoricamente) envia o email
   def create_invitation(inviter, attrs) do
-    attrs = Map.put(attrs, "inviter_id", inviter.id)
+    attrs =
+      attrs
+      |> Enum.map(fn {k, v} -> {to_string(k), v} end)
+      |> Map.new()
+      |> Map.put("inviter_id", inviter.id)
 
     %Invitation{}
     |> Invitation.changeset(attrs)
     |> Repo.insert()
     |> case do
       {:ok, invitation} ->
-        #disparamos o email usando o módulo Mailer
-        #Homeschooling.Mailer.send_invitation(invitation)
+        Task.start(fn ->
+          Homeschooling.Mailer.send_invitation(invitation)
+        end)
         {:ok, invitation}
       error -> error
     end

@@ -2,6 +2,9 @@ defmodule Homeschooling.Accounts.Invitation do
   use Ecto.Schema
   import Ecto.Changeset
 
+
+  @primary_key{:id, Ecto.UUID, autogenerate: true}
+  @foreign_key_type Ecto.UUID
   schema "invitations" do
     field :email, :string
     field :token, :string
@@ -40,7 +43,7 @@ defmodule Homeschooling.Accounts.Invitation do
     if get_field(changeset, :token) do
       changeset
     else
-      token = :crypto.strong_rand_bytes(32) |> Base.url_encoded64(padding: false)
+      token = :crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false)
       put_change(changeset, :token, token)
     end
   end
@@ -50,7 +53,11 @@ defmodule Homeschooling.Accounts.Invitation do
     if get_field(changeset, :expires_at) do
       changeset
     else
-      put_change(changeset, :expires_at, DateTime.add(DateTime.utc_now(), 7, :day))
+      expiration_date =
+        DateTime.utc_now()
+        |> DateTime.add(7, :day)
+        |> DateTime.truncate(:second)
+      put_change(changeset, :expires_at, expiration_date)
     end
   end
 
