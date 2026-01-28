@@ -37,7 +37,7 @@ defmodule Homeschooling.Accounts.Invitation do
       changeset
     end
   end
-
+ #ss
   #Gera um token seguro de 32 btes (codificado aqui em Base64 URL-safe)
   defp generate_token_if_missing(changeset) do
     if get_field(changeset, :token) do
