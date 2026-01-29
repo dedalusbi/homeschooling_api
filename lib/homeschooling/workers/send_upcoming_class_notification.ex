@@ -6,7 +6,7 @@ defmodule Homeschooling.Workers.SendUpcomingClassNotification do
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"schedule_id" => schedule_id}}) do
     #Busca a aula, o aluno e os responsáveis
-    schedule = Accounts.get_schedule!(schedule_id) |> Repo.preload([student: [guardians: :user]])
+    schedule = Accounts.get_schedule!(schedule_id) |> Repo.preload([:subject, student: [guardians: :user]])
 
     #Mensagem ácida de lembrete
     title = "Aula começando: #{schedule.subject.name}"
@@ -26,9 +26,14 @@ defmodule Homeschooling.Workers.SendUpcomingClassNotification do
 
   defp send_fcm([], _, _), do: :ok
   defp send_fcm(tokens, title, body) do
+    # Usamos IO.inspect com label GRANDE para você não perder no log
+    IO.inspect("--------------- PUSH NOTIFICATION ---------------")
+    IO.inspect("Para: #{length(tokens)} dispositivos")
+    IO.inspect("Título: #{title}")
+    IO.inspect("Corpo: #{body}")
+    IO.inspect("-------------------------------------------------")
     #Simulação. na prática precisamos da chave do servidor do firebase
     #Req.post("https://fcm.googleapis.com/fcm/send", json: %{...})
-    IO.puts("Simulando Push para #{length(tokens)} devices: #{title} - #{body}")
   end
 
 end
