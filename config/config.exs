@@ -83,5 +83,8 @@ config :stripity_stripe,
 
   config :homeschooling, Oban,
     repo: Homeschooling.Repo,
-    plugins: [Oban.Plugins.Pruner],
+    plugins: [
+      Oban.Plugins.Pruner,
+      {Oban.Plugins.Cron, crontab: [{"*/5 * * * *", Homeschooling.Workers.Scheduler}]} # roda a cada 5 minutos
+      ],
     queues: [default: 10, notifications: 50]
