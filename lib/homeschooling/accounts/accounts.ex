@@ -1194,8 +1194,8 @@ defmodule Homeschooling.Accounts do
           or
           (
             se.specific_date >= ^new_start_date and
-            (is_nil(^new_end_date) or se.specific_date <= ^new_end_date) and
-            fragment("EXTRACT(DOW FROM ?) IN (?)", se.specific_date, ^days)
+            se.specific_date <= ^(new_end_date || ~D[9999-12-31]) and
+            fragment("EXTRACT(DOW FROM ?) = ANY(?)", se.specific_date, ^days)
           )
     end
 
@@ -1723,7 +1723,9 @@ defmodule Homeschooling.Accounts do
   end
 
   def get_invitation_by_token(token) do
-    Repo.get_by(Invitation, token: token, status: :pending)
+    Invitation
+    |> Repo.get_by(token: token, status: :pending)
+    |> Repo.preload([:inviter, :student])
   end
 
   def accept_invitation(%User{} = user, token) do
